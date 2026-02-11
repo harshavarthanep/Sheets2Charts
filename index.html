@@ -3,324 +3,533 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataViz | Professional Excel Visualizer</title>
+    <title>DataViz Pro | Multi-File Analytics</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        body { font-family: 'Inter', sans-serif; }
-        /* Custom Scrollbar for Table */
-        .table-container::-webkit-scrollbar { height: 8px; }
-        .table-container::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
-        .table-container::-webkit-scrollbar-track { background: #1f2937; }
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
+        
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
+
+        /* Smooth Transitions */
+        .transition-all { transition: all 0.3s ease-in-out; }
+        
+        /* Glassmorphism Panels */
+        .glass-panel {
+            background: rgba(30, 41, 59, 0.7);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .chart-container-large { height: 65vh; min-height: 500px; }
+        .chart-container-split { height: 50vh; min-height: 400px; }
     </style>
 </head>
-<body class="bg-gray-900 text-gray-100 min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col overflow-hidden">
 
-    <nav class="border-b border-gray-800 bg-gray-950 py-4 px-6 flex justify-between items-center shadow-lg">
-        <div class="flex items-center gap-2">
-            <div class="w-8 h-8 bg-blue-600 rounded flex items-center justify-center font-bold text-white">D</div>
-            <span class="text-xl font-semibold tracking-tight">DataViz Tool</span>
-        </div>
-        <div class="text-sm text-gray-500">Client-Side Secure &bull; v1.0</div>
-    </nav>
+    <header class="bg-slate-900 border-b border-slate-700 h-16 flex items-center justify-between px-6 z-20 shadow-lg">
+        <div class="flex items-center gap-4">
+            <div class="bg-blue-600 text-white font-bold p-2 rounded-lg shadow-blue-500/20 shadow-lg">
+                <i class="fa-solid fa-chart-line"></i>
+            </div>
+            <h1 class="text-lg font-bold tracking-wide">DataViz <span class="text-blue-500">Pro</span></h1>
+            
+            <div class="h-6 w-px bg-slate-700 mx-2"></div>
 
-    <main class="flex-grow container mx-auto px-4 py-8 max-w-6xl">
-        
-        <div id="upload-section" class="mb-8">
-            <div class="border-2 border-dashed border-gray-700 bg-gray-800/50 rounded-xl p-10 text-center hover:border-blue-500 transition-colors cursor-pointer relative" id="drop-zone">
-                <input type="file" id="file-input" accept=".xlsx, .xls, .csv" class="absolute inset-0 w-full h-full opacity-0 cursor-pointer">
-                <div class="space-y-2 pointer-events-none">
-                    <svg class="w-12 h-12 text-gray-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path></svg>
-                    <p class="text-lg font-medium text-gray-300">Drop your Excel file here</p>
-                    <p class="text-sm text-gray-500">or click to browse (.xlsx, .xls)</p>
-                </div>
+            <div id="file-tabs" class="flex gap-2 overflow-x-auto max-w-xl no-scrollbar">
+                <span class="text-xs text-slate-500 italic py-2">No files loaded</span>
             </div>
         </div>
 
-        <div id="dashboard" class="hidden space-y-6">
+        <div class="flex items-center gap-4">
+            <label class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md text-sm font-medium transition flex items-center gap-2 shadow-lg shadow-blue-600/20">
+                <i class="fa-solid fa-cloud-arrow-up"></i> Upload Files
+                <input type="file" id="file-input" multiple accept=".xlsx, .xls, .csv" class="hidden">
+            </label>
+
+            <div class="flex items-center gap-2 bg-slate-800 p-1.5 rounded-lg border border-slate-700">
+                <span class="text-xs font-medium text-slate-400 px-2">Single</span>
+                <button id="compare-toggle" class="w-10 h-5 bg-slate-600 rounded-full relative transition-colors focus:outline-none">
+                    <div class="w-3 h-3 bg-white rounded-full absolute top-1 left-1 transition-transform transform"></div>
+                </button>
+                <span class="text-xs font-medium text-slate-400 px-2">Compare</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-grow flex flex-col md:flex-row h-[calc(100vh-64px)] overflow-hidden">
+        
+        <div id="viz-area" class="flex-grow flex flex-col overflow-y-auto p-4 gap-4 transition-all w-full">
             
-            <div class="bg-gray-800 p-4 rounded-lg shadow-md border border-gray-700 grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-                
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">X-Axis (Labels)</label>
-                    <select id="x-axis-select" class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-sm rounded focus:ring-blue-500 focus:border-blue-500 block p-2.5">
-                        <option>Select Column...</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">Y-Axis (Values)</label>
-                    <select id="y-axis-select" class="w-full bg-gray-900 border border-gray-700 text-gray-200 text-sm rounded focus:ring-blue-500 focus:border-blue-500 block p-2.5">
-                        <option>Select Column...</option>
-                    </select>
-                </div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-400 mb-1">Chart Type</label>
-                    <div class="flex bg-gray-900 rounded border border-gray-700 overflow-hidden">
-                        <button onclick="updateChartType('bar')" class="flex-1 py-2 text-sm hover:bg-gray-700 focus:bg-blue-600 transition">Bar</button>
-                        <button onclick="updateChartType('line')" class="flex-1 py-2 text-sm hover:bg-gray-700 focus:bg-blue-600 transition">Line</button>
-                        <button onclick="updateChartType('pie')" class="flex-1 py-2 text-sm hover:bg-gray-700 focus:bg-blue-600 transition">Pie</button>
+            <div id="single-view" class="flex flex-col gap-4 h-full">
+                <div class="glass-panel p-4 rounded-xl flex flex-wrap gap-4 items-end justify-between">
+                    <div class="flex gap-4 items-end flex-grow">
+                        <div class="w-48">
+                            <label class="text-xs text-slate-400 font-semibold uppercase mb-1 block">Active Data Source</label>
+                            <select id="s-file-select" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 outline-none">
+                                <option>Upload a file first...</option>
+                            </select>
+                        </div>
+                        <div class="w-40">
+                            <label class="text-xs text-slate-400 font-semibold uppercase mb-1 block">X-Axis (Label)</label>
+                            <select id="s-xaxis" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm outline-none"></select>
+                        </div>
+                        <div class="w-40">
+                            <label class="text-xs text-slate-400 font-semibold uppercase mb-1 block">Y-Axis (Value)</label>
+                            <select id="s-yaxis" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm outline-none"></select>
+                        </div>
+                        <div class="w-32">
+                            <label class="text-xs text-slate-400 font-semibold uppercase mb-1 block">Chart Type</label>
+                            <select id="s-type" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm outline-none">
+                                <option value="bar">Bar</option>
+                                <option value="line">Line</option>
+                                <option value="pie">Pie</option>
+                                <option value="doughnut">Doughnut</option>
+                                <option value="scatter">Scatter</option>
+                                <option value="radar">Radar</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-2">
+                        <button onclick="downloadChart('s-chart')" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-sm font-medium border border-slate-600">
+                            <i class="fa-solid fa-download mr-2"></i> PNG
+                        </button>
                     </div>
                 </div>
 
-                <div>
-                    <button id="visualize-btn" class="w-full text-white bg-blue-600 hover:bg-blue-700 font-medium rounded text-sm px-5 py-2.5 focus:outline-none transition-colors shadow-lg shadow-blue-500/30">
-                        Update Visual
-                    </button>
-                </div>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div class="lg:col-span-2 bg-gray-800 rounded-lg shadow-md border border-gray-700 p-4 relative h-96">
-                    <canvas id="mainChart"></canvas>
+                <div class="glass-panel rounded-xl p-4 flex-grow relative chart-container-large">
+                    <canvas id="s-chart"></canvas>
                 </div>
 
-                <div class="bg-gray-800 rounded-lg shadow-md border border-gray-700 p-4 flex flex-col h-96">
-                    <h3 class="text-sm font-semibold text-gray-300 mb-3 uppercase tracking-wider">Data Preview</h3>
-                    <div class="table-container overflow-auto flex-grow border border-gray-700 rounded bg-gray-900">
-                        <table class="w-full text-sm text-left text-gray-400">
-                            <thead class="text-xs text-gray-300 uppercase bg-gray-950 sticky top-0">
-                                <tr id="table-head"></tr>
+                <div class="glass-panel rounded-xl p-0 flex flex-col h-64 overflow-hidden border-t-4 border-blue-600">
+                    <div class="bg-slate-800 p-2 px-4 border-b border-slate-700 flex justify-between items-center">
+                        <h3 class="font-semibold text-sm text-slate-300">Data Spreadsheet View</h3>
+                        <span id="s-row-count" class="text-xs text-slate-500">0 rows</span>
+                    </div>
+                    <div class="overflow-auto flex-grow p-0">
+                        <table class="w-full text-left text-sm text-slate-400">
+                            <thead class="bg-slate-900 text-xs uppercase sticky top-0 z-10 text-slate-300">
+                                <tr id="s-table-head"></tr>
                             </thead>
-                            <tbody id="table-body"></tbody>
+                            <tbody id="s-table-body" class="divide-y divide-slate-800"></tbody>
                         </table>
                     </div>
-                    <div class="mt-2 text-xs text-gray-500 text-right" id="row-count"></div>
                 </div>
+            </div>
+
+            <div id="compare-view" class="hidden flex-row gap-4 h-full">
+                
+                <div class="w-1/2 flex flex-col gap-3">
+                    <div class="glass-panel p-3 rounded-lg border-l-4 border-blue-500">
+                        <div class="flex gap-2 mb-2">
+                            <select id="c1-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600"></select>
+                            <select id="c1-type" class="bg-slate-800 text-xs w-24 p-2 rounded border border-slate-600">
+                                <option value="bar">Bar</option> <option value="line">Line</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <select id="c1-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600"></select>
+                            <select id="c1-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600"></select>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-lg p-2 flex-grow relative chart-container-split">
+                        <canvas id="c1-chart"></canvas>
+                        <button onclick="downloadChart('c1-chart')" class="absolute top-2 right-2 bg-slate-800/80 p-1 px-2 rounded text-xs hover:bg-white hover:text-black transition"><i class="fa-solid fa-download"></i></button>
+                    </div>
+                </div>
+
+                <div class="w-1/2 flex flex-col gap-3">
+                    <div class="glass-panel p-3 rounded-lg border-l-4 border-emerald-500">
+                        <div class="flex gap-2 mb-2">
+                            <select id="c2-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600"></select>
+                            <select id="c2-type" class="bg-slate-800 text-xs w-24 p-2 rounded border border-slate-600">
+                                <option value="bar">Bar</option> <option value="line">Line</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <select id="c2-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600"></select>
+                            <select id="c2-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600"></select>
+                        </div>
+                    </div>
+                    <div class="glass-panel rounded-lg p-2 flex-grow relative chart-container-split">
+                        <canvas id="c2-chart"></canvas>
+                        <button onclick="downloadChart('c2-chart')" class="absolute top-2 right-2 bg-slate-800/80 p-1 px-2 rounded text-xs hover:bg-white hover:text-black transition"><i class="fa-solid fa-download"></i></button>
+                    </div>
+                </div>
+
             </div>
         </div>
 
     </main>
 
+    <div id="welcome-overlay" class="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center">
+        <div class="bg-slate-800 p-8 rounded-2xl shadow-2xl max-w-lg text-center border border-slate-700">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl">
+                <i class="fa-solid fa-rocket text-white"></i>
+            </div>
+            <h2 class="text-3xl font-bold text-white mb-2">Ready to Visualize?</h2>
+            <p class="text-slate-400 mb-8">Upload multiple Excel or CSV files. Compare data side-by-side. Export professional charts instantly.</p>
+            <label class="cursor-pointer bg-blue-600 hover:bg-blue-500 text-white px-8 py-3 rounded-xl text-lg font-bold transition shadow-xl shadow-blue-600/30 inline-block">
+                Select Data Files
+                <input type="file" id="intro-file-input" multiple accept=".xlsx, .xls, .csv" class="hidden">
+            </label>
+        </div>
+    </div>
+
     <script>
-        // Global State
-        let rawData = [];
-        let chartInstance = null;
-        let currentChartType = 'bar';
+        // --- STATE MANAGEMENT ---
+        const AppState = {
+            files: {}, // format: { 'filename': { data: [], headers: [] } }
+            activeFile: null,
+            isCompareMode: false,
+            charts: {
+                single: null,
+                compare1: null,
+                compare2: null
+            }
+        };
 
-        // DOM Elements
-        const fileInput = document.getElementById('file-input');
-        const dashboard = document.getElementById('dashboard');
-        const xSelect = document.getElementById('x-axis-select');
-        const ySelect = document.getElementById('y-axis-select');
-        const visualizeBtn = document.getElementById('visualize-btn');
-        const tableHead = document.getElementById('table-head');
-        const tableBody = document.getElementById('table-body');
-        const rowCount = document.getElementById('row-count');
-
-        // Event Listener: File Upload
-        fileInput.addEventListener('change', handleFile);
-
-        function handleFile(e) {
-            const file = e.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
+        // --- DOM ELEMENTS ---
+        const els = {
+            fileInput: document.getElementById('file-input'),
+            introInput: document.getElementById('intro-file-input'),
+            tabs: document.getElementById('file-tabs'),
+            welcome: document.getElementById('welcome-overlay'),
             
-            reader.onload = function(e) {
-                try {
-                    const data = new Uint8Array(e.target.result);
+            // Views
+            singleView: document.getElementById('single-view'),
+            compareView: document.getElementById('compare-view'),
+            compareToggle: document.getElementById('compare-toggle'),
+            
+            // Single View Controls
+            sFile: document.getElementById('s-file-select'),
+            sX: document.getElementById('s-xaxis'),
+            sY: document.getElementById('s-yaxis'),
+            sType: document.getElementById('s-type'),
+            sTableHead: document.getElementById('s-table-head'),
+            sTableBody: document.getElementById('s-table-body'),
+            sRowCount: document.getElementById('s-row-count'),
+
+            // Compare View Controls
+            c1File: document.getElementById('c1-file'),
+            c1X: document.getElementById('c1-xaxis'),
+            c1Y: document.getElementById('c1-yaxis'),
+            c1Type: document.getElementById('c1-type'),
+
+            c2File: document.getElementById('c2-file'),
+            c2X: document.getElementById('c2-xaxis'),
+            c2Y: document.getElementById('c2-yaxis'),
+            c2Type: document.getElementById('c2-type'),
+        };
+
+        // --- EVENT LISTENERS ---
+        els.fileInput.addEventListener('change', handleUpload);
+        els.introInput.addEventListener('change', handleUpload);
+        
+        // Single View Listeners
+        els.sFile.addEventListener('change', (e) => switchActiveFile(e.target.value));
+        els.sX.addEventListener('change', updateSingleChart);
+        els.sY.addEventListener('change', updateSingleChart);
+        els.sType.addEventListener('change', updateSingleChart);
+
+        // Compare View Listeners (Independent)
+        els.c1File.addEventListener('change', () => updateComparePanel(1, true));
+        els.c1X.addEventListener('change', () => updateComparePanel(1, false));
+        els.c1Y.addEventListener('change', () => updateComparePanel(1, false));
+        els.c1Type.addEventListener('change', () => updateComparePanel(1, false));
+
+        els.c2File.addEventListener('change', () => updateComparePanel(2, true));
+        els.c2X.addEventListener('change', () => updateComparePanel(2, false));
+        els.c2Y.addEventListener('change', () => updateComparePanel(2, false));
+        els.c2Type.addEventListener('change', () => updateComparePanel(2, false));
+
+        // Toggle Mode
+        els.compareToggle.addEventListener('click', toggleCompareMode);
+
+        // --- FILE HANDLING ---
+        function handleUpload(e) {
+            const files = Array.from(e.target.files);
+            if (files.length === 0) return;
+
+            els.welcome.style.display = 'none';
+
+            files.forEach(file => {
+                const reader = new FileReader();
+                reader.onload = (ev) => {
+                    const data = new Uint8Array(ev.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
-                    
-                    // Get first sheet
-                    const firstSheetName = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[firstSheetName];
-                    
-                    // Convert to JSON
-                    rawData = XLSX.utils.sheet_to_json(worksheet, { defval: "" });
+                    const sheetName = workbook.SheetNames[0];
+                    const sheet = workbook.Sheets[sheetName];
+                    const jsonData = XLSX.utils.sheet_to_json(sheet, { defval: "" });
 
-                    if (rawData.length === 0) {
-                        alert("File appears empty!");
-                        return;
+                    if (jsonData.length > 0) {
+                        const headers = Object.keys(jsonData[0]);
+                        AppState.files[file.name] = { data: jsonData, headers: headers };
+                        
+                        // Set active if first
+                        if (!AppState.activeFile) AppState.activeFile = file.name;
+                        
+                        refreshUI();
                     }
-
-                    // Success: Show Dashboard
-                    dashboard.classList.remove('hidden');
-                    populateControls();
-                    renderTablePreview();
-                    
-                    // Auto-guess columns and render initial chart
-                    autoSelectColumns();
-                    renderChart();
-
-                } catch (error) {
-                    console.error(error);
-                    alert("Error parsing file. Please ensure it's a valid Excel file.");
-                }
-            };
-            reader.readAsArrayBuffer(file);
-        }
-
-        // Populate Dropdowns based on Excel Headers
-        function populateControls() {
-            const headers = Object.keys(rawData[0]);
-            
-            xSelect.innerHTML = '';
-            ySelect.innerHTML = '';
-
-            headers.forEach(header => {
-                const option1 = document.createElement('option');
-                option1.value = header;
-                option1.text = header;
-                xSelect.appendChild(option1);
-
-                const option2 = document.createElement('option');
-                option2.value = header;
-                option2.text = header;
-                ySelect.appendChild(option2);
+                };
+                reader.readAsArrayBuffer(file);
             });
         }
 
-        // Render Data Preview Table (First 20 rows)
-        function renderTablePreview() {
-            const headers = Object.keys(rawData[0]);
+        function refreshUI() {
+            renderFileTabs();
+            populateFileSelects();
             
-            // Header
-            tableHead.innerHTML = headers.map(h => `<th class="px-4 py-2 whitespace-nowrap">${h}</th>`).join('');
-
-            // Body
-            tableBody.innerHTML = rawData.slice(0, 50).map(row => {
-                return `<tr class="border-b border-gray-800 hover:bg-gray-800/50">
-                    ${headers.map(h => `<td class="px-4 py-2 truncate max-w-xs">${row[h]}</td>`).join('')}
-                </tr>`;
-            }).join('');
-
-            rowCount.innerText = `Showing first 50 of ${rawData.length} rows`;
-        }
-
-        // Logic to guess which columns are Labels vs Numbers
-        function autoSelectColumns() {
-            const headers = Object.keys(rawData[0]);
-            let labelCol = headers[0];
-            let valueCol = headers[1] || headers[0];
-
-            // Simple heuristic: Try to find a column with "date", "name" for X, and "amount", "price", "count" for Y
-            for (let h of headers) {
-                const lower = h.toLowerCase();
-                if (lower.includes('date') || lower.includes('name') || lower.includes('month')) labelCol = h;
-                if (lower.includes('sales') || lower.includes('amount') || lower.includes('total') || lower.includes('price')) valueCol = h;
+            // Trigger logic for Single View
+            if (AppState.activeFile) {
+                // Populate column dropdowns for Single view based on Active File
+                populateColumnSelects(els.sX, els.sY, AppState.activeFile);
+                autoGuessColumns(els.sX, els.sY, AppState.activeFile);
+                renderTable(AppState.activeFile);
+                updateSingleChart();
             }
 
-            xSelect.value = labelCol;
-            ySelect.value = valueCol;
+            // Trigger logic for Compare View (defaults)
+            const fileNames = Object.keys(AppState.files);
+            if (fileNames.length > 0) {
+                // Populate Compare Panel 1 (Default to first file)
+                if(!els.c1File.value) {
+                    populateColumnSelects(els.c1X, els.c1Y, fileNames[0]);
+                    autoGuessColumns(els.c1X, els.c1Y, fileNames[0]);
+                    updateComparePanel(1, false);
+                }
+                // Populate Compare Panel 2 (Default to second file if exists, else first)
+                if(!els.c2File.value) {
+                    const secondFile = fileNames[1] || fileNames[0];
+                    populateColumnSelects(els.c2X, els.c2Y, secondFile);
+                    autoGuessColumns(els.c2X, els.c2Y, secondFile);
+                    updateComparePanel(2, false);
+                }
+            }
         }
 
-        // Chart Rendering Logic
-        function renderChart() {
-            const xCol = xSelect.value;
-            const yCol = ySelect.value;
+        function renderFileTabs() {
+            els.tabs.innerHTML = '';
+            Object.keys(AppState.files).forEach(fname => {
+                const isActive = fname === AppState.activeFile;
+                const tab = document.createElement('div');
+                tab.className = `px-3 py-1.5 rounded-md text-xs font-medium cursor-pointer whitespace-nowrap transition border ${isActive ? 'bg-blue-600/20 text-blue-400 border-blue-500/50' : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'}`;
+                tab.innerText = fname;
+                tab.onclick = () => switchActiveFile(fname);
+                els.tabs.appendChild(tab);
+            });
+        }
 
-            const labels = rawData.map(row => row[xCol]);
-            const dataValues = rawData.map(row => {
-                // Clean data: remove currency symbols, commas, convert to float
-                let val = row[yCol];
-                if (typeof val === 'string') {
-                    val = parseFloat(val.replace(/[^0-9.-]+/g,""));
-                }
+        function populateFileSelects() {
+            const files = Object.keys(AppState.files);
+            const selects = [els.sFile, els.c1File, els.c2File];
+            
+            selects.forEach(sel => {
+                const currentVal = sel.value;
+                sel.innerHTML = '';
+                files.forEach(f => {
+                    const opt = document.createElement('option');
+                    opt.value = f;
+                    opt.text = f;
+                    sel.appendChild(opt);
+                });
+                if(currentVal && files.includes(currentVal)) sel.value = currentVal;
+            });
+
+            // Sync single view select with state
+            if(AppState.activeFile) els.sFile.value = AppState.activeFile;
+        }
+
+        function switchActiveFile(filename) {
+            AppState.activeFile = filename;
+            refreshUI(); // Re-render table and single charts
+        }
+
+        function populateColumnSelects(xEl, yEl, filename) {
+            if(!AppState.files[filename]) return;
+            const headers = AppState.files[filename].headers;
+            
+            xEl.innerHTML = '';
+            yEl.innerHTML = '';
+
+            headers.forEach(h => {
+                xEl.add(new Option(h, h));
+                yEl.add(new Option(h, h));
+            });
+        }
+
+        function autoGuessColumns(xEl, yEl, filename) {
+             if(!AppState.files[filename]) return;
+            const headers = AppState.files[filename].headers;
+            let labelCol = headers[0];
+            let valCol = headers[1] || headers[0];
+
+            headers.forEach(h => {
+                const l = h.toLowerCase();
+                if (l.includes('date') || l.includes('name') || l.includes('year') || l.includes('month')) labelCol = h;
+                if (l.includes('sales') || l.includes('profit') || l.includes('cost') || l.includes('amount') || l.includes('score')) valCol = h;
+            });
+
+            xEl.value = labelCol;
+            yEl.value = valCol;
+        }
+
+        // --- CHARTING LOGIC ---
+
+        function updateSingleChart() {
+            if (!AppState.activeFile) return;
+            renderChartGeneric(
+                's-chart', 
+                'single', 
+                AppState.activeFile, 
+                els.sX.value, 
+                els.sY.value, 
+                els.sType.value
+            );
+        }
+
+        function updateComparePanel(panelNum, fileChanged) {
+            const fileEl = panelNum === 1 ? els.c1File : els.c2File;
+            const xEl = panelNum === 1 ? els.c1X : els.c2X;
+            const yEl = panelNum === 1 ? els.c1Y : els.c2Y;
+            const typeEl = panelNum === 1 ? els.c1Type : els.c2Type;
+            const chartKey = panelNum === 1 ? 'compare1' : 'compare2';
+            const canvasId = panelNum === 1 ? 'c1-chart' : 'c2-chart';
+
+            const filename = fileEl.value;
+            if(!filename) return;
+
+            if (fileChanged) {
+                populateColumnSelects(xEl, yEl, filename);
+                autoGuessColumns(xEl, yEl, filename);
+            }
+
+            renderChartGeneric(canvasId, chartKey, filename, xEl.value, yEl.value, typeEl.value);
+        }
+
+        function renderChartGeneric(canvasId, storageKey, filename, xCol, yCol, type) {
+            const ctx = document.getElementById(canvasId).getContext('2d');
+            const rawData = AppState.files[filename].data;
+            
+            const labels = rawData.map(r => r[xCol]);
+            const data = rawData.map(r => {
+                let val = r[yCol];
+                if (typeof val === 'string') val = parseFloat(val.replace(/[^0-9.-]+/g,""));
                 return val || 0;
             });
 
-            // Destroy old chart if exists
-            if (chartInstance) {
-                chartInstance.destroy();
-            }
+            if (AppState.charts[storageKey]) AppState.charts[storageKey].destroy();
 
-            const ctx = document.getElementById('mainChart').getContext('2d');
-            
-            // Generate some nice colors
-            const colors = generateColors(dataValues.length);
+            const colors = generateColors(data.length);
+            const isLine = type === 'line' || type === 'radar' || type === 'scatter';
 
-            chartInstance = new Chart(ctx, {
-                type: currentChartType,
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: yCol,
-                        data: dataValues,
-                        backgroundColor: currentChartType === 'line' ? 'rgba(59, 130, 246, 0.2)' : colors.bg,
-                        borderColor: currentChartType === 'line' ? '#3b82f6' : colors.border,
-                        borderWidth: 1,
-                        tension: 0.3,
-                        fill: currentChartType === 'line'
-                    }]
-                },
+            // Dataset Configuration
+            let datasets = [{
+                label: yCol,
+                data: type === 'scatter' ? labels.map((l, i) => ({x: l, y: data[i]})) : data,
+                backgroundColor: isLine ? 'rgba(59, 130, 246, 0.2)' : colors.bg,
+                borderColor: isLine ? '#3b82f6' : colors.border,
+                borderWidth: 1.5,
+                fill: type === 'line' || type === 'radar',
+                pointBackgroundColor: '#3b82f6',
+                pointRadius: 4
+            }];
+
+            AppState.charts[storageKey] = new Chart(ctx, {
+                type: type,
+                data: { labels: labels, datasets: datasets },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
                     plugins: {
-                        legend: {
-                            labels: { color: '#9ca3af' }
-                        },
-                        title: {
-                            display: true,
-                            text: `${yCol} by ${xCol}`,
-                            color: '#e5e7eb',
-                            font: { size: 16 }
-                        }
+                        legend: { labels: { color: '#94a3b8' } },
+                        title: { display: true, text: `${filename}: ${yCol} vs ${xCol}`, color: '#e2e8f0' }
                     },
                     scales: {
-                        y: {
-                            beginAtZero: true,
-                            grid: { color: '#374151' },
-                            ticks: { color: '#9ca3af' },
-                            display: currentChartType !== 'pie' && currentChartType !== 'doughnut'
+                        x: { 
+                            ticks: { color: '#64748b' }, 
+                            grid: { color: '#1e293b' },
+                            display: type !== 'pie' && type !== 'doughnut' && type !== 'radar'
                         },
-                        x: {
-                            grid: { display: false },
-                            ticks: { color: '#9ca3af' },
-                            display: currentChartType !== 'pie' && currentChartType !== 'doughnut'
+                        y: { 
+                            ticks: { color: '#64748b' }, 
+                            grid: { color: '#1e293b' },
+                            display: type !== 'pie' && type !== 'doughnut' && type !== 'radar'
                         }
                     }
                 }
             });
         }
 
-        // Helper: Generate dynamic colors
-        function generateColors(count) {
-            const bg = [];
-            const border = [];
-            // Tailwind-ish Palette
-            const palette = [
-                'rgba(59, 130, 246, 0.6)', // Blue
-                'rgba(16, 185, 129, 0.6)', // Green
-                'rgba(245, 158, 11, 0.6)', // Amber
-                'rgba(239, 68, 68, 0.6)',  // Red
-                'rgba(139, 92, 246, 0.6)', // Purple
-                'rgba(236, 72, 153, 0.6)', // Pink
-            ];
-            const borderPalette = [
-                'rgb(59, 130, 246)', 
-                'rgb(16, 185, 129)', 
-                'rgb(245, 158, 11)', 
-                'rgb(239, 68, 68)', 
-                'rgb(139, 92, 246)', 
-                'rgb(236, 72, 153)', 
-            ];
+        // --- TABLE LOGIC ---
+        function renderTable(filename) {
+            const fileData = AppState.files[filename];
+            if(!fileData) return;
+
+            els.sTableHead.innerHTML = fileData.headers.map(h => `<th class="px-4 py-3 whitespace-nowrap bg-slate-900">${h}</th>`).join('');
             
+            // Render first 200 rows for performance
+            const rowsToRender = fileData.data.slice(0, 200);
+            els.sTableBody.innerHTML = rowsToRender.map(row => 
+                `<tr class="hover:bg-slate-800 transition">
+                    ${fileData.headers.map(h => `<td class="px-4 py-2 border-b border-slate-800 truncate max-w-xs">${row[h] || ''}</td>`).join('')}
+                </tr>`
+            ).join('');
+            
+            els.sRowCount.innerText = `Displaying ${rowsToRender.length} of ${fileData.data.length} rows`;
+        }
+
+        // --- UTILS ---
+        function toggleCompareMode() {
+            AppState.isCompareMode = !AppState.isCompareMode;
+            const toggleBtn = els.compareToggle.querySelector('div');
+            
+            if (AppState.isCompareMode) {
+                toggleBtn.classList.add('translate-x-5');
+                els.compareToggle.classList.replace('bg-slate-600', 'bg-blue-600');
+                els.singleView.classList.replace('flex', 'hidden');
+                els.compareView.classList.replace('hidden', 'flex');
+                
+                // Refresh compare charts
+                updateComparePanel(1, false);
+                updateComparePanel(2, false);
+            } else {
+                toggleBtn.classList.remove('translate-x-5');
+                els.compareToggle.classList.replace('bg-blue-600', 'bg-slate-600');
+                els.singleView.classList.replace('hidden', 'flex');
+                els.compareView.classList.replace('flex', 'hidden');
+                
+                // Refresh single chart
+                updateSingleChart();
+            }
+        }
+
+        function downloadChart(canvasId) {
+            const link = document.createElement('a');
+            link.download = `chart-export-${Date.now()}.png`;
+            link.href = document.getElementById(canvasId).toDataURL('image/png', 1.0);
+            link.click();
+        }
+
+        function generateColors(count) {
+            const bg = [], border = [];
             for (let i = 0; i < count; i++) {
-                bg.push(palette[i % palette.length]);
-                border.push(borderPalette[i % borderPalette.length]);
+                const hue = (i * 137.508) % 360; // Golden angle approx
+                bg.push(`hsla(${hue}, 70%, 60%, 0.6)`);
+                border.push(`hsla(${hue}, 70%, 60%, 1)`);
             }
             return { bg, border };
         }
-
-        // Update Chart Type Button Logic
-        window.updateChartType = (type) => {
-            currentChartType = type;
-            renderChart();
-        }
-
-        // Manual Update Trigger
-        visualizeBtn.addEventListener('click', renderChart);
-
     </script>
 </body>
 </html>
