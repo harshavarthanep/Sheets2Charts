@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataViz Pro V9 | Enterprise Analytics</title>
+    <title>DataViz Pro V10 | Enterprise Analytics</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -29,24 +29,23 @@
         /* Layout Heights */
         .chart-area-single { height: 50vh; min-height: 450px; }
         .chart-area-compare { height: 35vh; min-height: 250px; }
-        .chart-area-dashboard { height: 300px; width: 100%; }
         .table-scroll-body { max-height: 400px; overflow-y: auto; }
         
-        /* Dropdowns & Modals */
+        /* Dropdowns */
         .dropdown-menu {
             position: fixed; background: #1e293b; border: 1px solid #475569; border-radius: 0.5rem;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); z-index: 9999; animation: fadeIn 0.15s ease-out;
             max-height: 400px; display: flex; flex-direction: column;
         }
         .series-dropdown { width: 340px; }
-        .settings-dropdown { width: 200px; padding: 0.5rem; }
         
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         
-        /* Interactive Elements */
+        /* Editable Cells */
         td[contenteditable="true"]:focus { background: #1e293b; outline: 2px solid #3b82f6; border-radius: 4px; color: white; padding: 4px; }
         td[contenteditable="true"]:hover { background: #1e293b; cursor: text; }
         
+        /* Toggle Switch */
         .toggle-switch {
             appearance: none; width: 32px; height: 18px; background: #475569; border-radius: 20px; position: relative; cursor: pointer; transition: 0.3s;
         }
@@ -177,8 +176,7 @@
                 <h2 class="text-2xl font-bold text-white">Executive Dashboard</h2>
                 <button onclick="clearDashboard()" class="text-xs text-red-400 hover:text-red-300"><i class="fa-solid fa-trash mr-1"></i> Clear Board</button>
             </div>
-            <div id="dashboard-container" class="dashboard-grid pb-10">
-                </div>
+            <div id="dashboard-container" class="dashboard-grid pb-10"></div>
             <div id="dashboard-empty" class="text-center text-slate-500 mt-20 hidden">
                 <i class="fa-solid fa-thumbtack text-4xl mb-4 opacity-50"></i>
                 <p>Your dashboard is empty.</p>
@@ -234,7 +232,7 @@
                             <canvas id="c2-chart"></canvas>
                             <button onclick="downloadChart('c2-chart', 'Right_Chart')" class="absolute top-2 right-2 bg-slate-900/80 p-1.5 rounded text-white hover:text-emerald-400 text-xs"><i class="fa-solid fa-download"></i></button>
                         </div>
-                         <div class="glass-panel rounded-lg overflow-hidden flex flex-col h-64 border border-slate-700">
+                        <div class="glass-panel rounded-lg overflow-hidden flex flex-col h-64 border border-slate-700">
                             <div class="bg-slate-900 px-3 py-2 border-b border-slate-800 flex justify-between items-center">
                                 <span class="text-xs font-bold text-slate-400 uppercase">Dataset B</span>
                                 <button onclick="downloadCSV(els.c2File.value)" class="text-[10px] text-emerald-400 hover:underline"><i class="fa-solid fa-file-csv"></i> CSV</button>
@@ -247,9 +245,7 @@
                     
                     <div id="c2-overlay" class="absolute inset-0 flex items-center justify-center z-10 hidden pb-32">
                         <div class="bg-slate-900/90 p-6 rounded-xl border border-slate-600 text-center shadow-2xl backdrop-blur">
-                            <div class="w-12 h-12 bg-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/30">
-                                <i class="fa-solid fa-plus text-white"></i>
-                            </div>
+                            <div class="w-12 h-12 bg-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/30"><i class="fa-solid fa-plus text-white"></i></div>
                             <p class="text-slate-300 mb-4 font-medium text-sm">Add dataset to compare</p>
                             <button onclick="triggerUpload()" class="bg-white text-slate-900 hover:bg-slate-200 px-6 py-2 rounded-lg font-bold shadow-lg text-xs">Upload File B</button>
                         </div>
@@ -260,9 +256,7 @@
     </main>
 
     <footer class="bg-slate-950 border-t border-slate-800 py-4 text-center mt-auto shrink-0 z-50">
-        <p class="text-slate-500 text-sm font-medium">
-            Made with <span class="text-red-500 animate-pulse">❤️</span> by <span class="text-slate-300">Harsha Varthan E P</span>
-        </p>
+        <p class="text-slate-500 text-sm font-medium">Made with <span class="text-red-500 animate-pulse">❤️</span> by <span class="text-slate-300">Harsha Varthan E P</span></p>
     </footer>
 
     <div id="welcome-modal" class="fixed inset-0 bg-slate-950/90 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
@@ -286,12 +280,7 @@
     </div>
 
     <script>
-        /** =========================================
-         * CORE: DATABASE & STATE MANAGEMENT
-         * ========================================= */
-        const DB_NAME = 'DataVizDB_V9';
-        const STORE_NAME = 'files';
-
+        const DB_NAME = 'DataVizDB_V10'; const STORE_NAME = 'files';
         const dbPromise = new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, 3);
             request.onupgradeneeded = (e) => { if(!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME); };
@@ -303,14 +292,11 @@
         async function dbGet(key) { const db=await dbPromise; return new Promise(r=>{ const req=db.transaction(STORE_NAME,'readonly').objectStore(STORE_NAME).get(key); req.onsuccess=()=>r(req.result); }); }
         async function dbClear() { const db=await dbPromise; const tx=db.transaction(STORE_NAME,'readwrite'); tx.objectStore(STORE_NAME).clear(); return new Promise(r=>tx.oncomplete=r); }
 
-        // --- APP STATE ---
         const App = {
             files: {}, activeFile: null, activeMode: 'single',
             workspace: { xAxis: null, seriesConfig: [], options: { showValues: false, showTrendline: false, tension: 0.3 }, annotations: {} },
             compare: { c1File: null, c1X: null, c1Y: null, c2File: null, c2X: null, c2Y: null },
-            dashboard: [], // Array of config objects for pinned charts
-            charts: { single: null, c1: null, c2: null, dash: [] },
-            dirty: false
+            dashboard: [], charts: { single: null, c1: null, c2: null, dash: [] }, dirty: false
         };
 
         const els = {
@@ -319,18 +305,12 @@
             viewSingle: document.getElementById('view-single'), viewCompare: document.getElementById('view-compare'), viewDash: document.getElementById('view-dashboard'),
             btnSingle: document.getElementById('btn-mode-single'), btnCompare: document.getElementById('btn-mode-compare'), btnDash: document.getElementById('btn-mode-dashboard'),
             loading: document.getElementById('loading-overlay'),
-            // Single
             sFile: document.getElementById('s-file'), sX: document.getElementById('s-xaxis'), sThead: document.getElementById('s-table-head'), sTbody: document.getElementById('s-table-body'), sCount: document.getElementById('s-row-count'), seriesLabel: document.getElementById('series-count-label'), statsBar: document.getElementById('stats-bar'),
-            // Compare
             c1File: document.getElementById('c1-file'), c1X: document.getElementById('c1-xaxis'), c1Y: document.getElementById('c1-yaxis'), c1Thead: document.getElementById('c1-table-head'), c1Tbody: document.getElementById('c1-table-body'),
             c2File: document.getElementById('c2-file'), c2X: document.getElementById('c2-xaxis'), c2Y: document.getElementById('c2-yaxis'), c2Thead: document.getElementById('c2-table-head'), c2Tbody: document.getElementById('c2-table-body'),
-            c2Wrapper: document.getElementById('c2-wrapper'), c2Overlay: document.getElementById('c2-overlay'),
-            dashContainer: document.getElementById('dashboard-container')
+            c2Wrapper: document.getElementById('c2-wrapper'), c2Overlay: document.getElementById('c2-overlay'), dashContainer: document.getElementById('dashboard-container')
         };
 
-        /** =========================================
-         * INITIALIZATION & NAV
-         * ========================================= */
         (async function init() {
             Chart.register(ChartDataLabels);
             const savedState = await dbGet('appState');
@@ -398,9 +378,6 @@
             App.dirty = false; els.saveStatus.innerText = "Saved"; setTimeout(() => els.saveStatus.style.opacity = '0', 2000);
         }
 
-        /** =========================================
-         * WORKSPACE (SINGLE)
-         * ========================================= */
         function initWorkspaceDefaults(fname) {
             const f = App.files[fname]; if(!f) return;
             App.workspace.xAxis = f.headers.find(h=>h.match(/date|name|cat/i)) || f.headers[0];
@@ -422,7 +399,6 @@
         els.sFile.onchange = (e) => { App.activeFile=e.target.value; initWorkspaceDefaults(App.activeFile); loadSingleView(); saveState(); };
         els.sX.onchange = (e) => { App.workspace.xAxis=e.target.value; updateSingleChart(); saveState(); };
 
-        // --- DYNAMIC DROPDOWNS (Smart Positioning) ---
         function openDropdown(btn, contentHtml, closeCallback) {
             const existing = document.querySelector('.dropdown-menu'); if(existing) existing.remove();
             const dd = document.createElement('div'); dd.className = 'dropdown-menu'; dd.innerHTML = contentHtml;
@@ -431,7 +407,7 @@
 
             const rect = btn.getBoundingClientRect();
             const spaceBelow = window.innerHeight - rect.bottom;
-            const reqHeight = 350; // estimate
+            const reqHeight = 350;
             
             dd.style.left = `${rect.left}px`;
             if (spaceBelow < reqHeight) { dd.style.bottom = `${window.innerHeight - rect.top + 5}px`; dd.style.top = 'auto'; } 
@@ -444,38 +420,34 @@
             }), 0);
         }
 
-        // --- SERIES MANAGER ---
         window.toggleSeriesManager = (btn) => {
             const f = App.files[App.activeFile];
             let html = `<div class="p-3 series-dropdown">
-                <div class="flex justify-between items-center mb-2 font-bold text-xs text-slate-500 uppercase"><span>Columns</span> <i class="fa-solid fa-times cursor-pointer" onclick="document.querySelector('.dropdown-menu').remove()"></i></div>
+                <div class="flex justify-between items-center mb-2 font-bold text-xs text-slate-500 uppercase"><span>Active Data Series</span> <i class="fa-solid fa-times cursor-pointer" onclick="document.querySelector('.dropdown-menu').remove()"></i></div>
                 <div class="overflow-y-auto space-y-2 pr-1 custom-scroll" style="max-height: 250px">`;
             
             f.headers.forEach(h => {
                 const cfg = App.workspace.seriesConfig.find(c => c.col === h); const isSel = !!cfg;
                 html += `<div class="bg-slate-800 rounded border ${isSel?'border-blue-500':'border-slate-700'} p-2">
-                    <div class="flex items-center justify-between">
+                    <div class="flex items-center justify-between mb-1">
                         <label class="flex items-center gap-2 text-sm text-white truncate w-32 cursor-pointer">
                             <input type="checkbox" onchange="updSeries('${h}',this.checked)" ${isSel?'checked':''} class="accent-blue-500"> <span class="truncate">${h}</span>
                         </label>
                         ${isSel ? `<select onchange="updType('${h}',this.value)" class="bg-slate-900 border border-slate-600 text-[10px] rounded p-1"><option value="bar" ${cfg.type=='bar'?'selected':''}>Bar</option><option value="line" ${cfg.type=='line'?'selected':''}>Line</option><option value="area" ${cfg.type=='area'?'selected':''}>Area</option></select>`:''}
                     </div>
+                    ${isSel ? `<div class="flex justify-between items-center border-t border-slate-700 pt-1"><span class="text-[10px] text-orange-400 font-bold uppercase">Right Axis?</span><input type="checkbox" onchange="updAxis('${h}',this.checked)" ${cfg.axis=='right'?'checked':''} class="accent-orange-500"></div>` : ''}
                 </div>`;
             });
             html += `</div></div>`;
             openDropdown(btn, html, () => refreshSeriesUI());
         };
 
-        window.updSeries = (c, chk) => { 
-            if(chk) App.workspace.seriesConfig.push({col:c, type:'bar', axis:'left'}); 
-            else App.workspace.seriesConfig = App.workspace.seriesConfig.filter(x=>x.col!==c); 
-            refreshSeriesUI(); 
-        };
+        window.updSeries = (c, chk) => { if(chk) App.workspace.seriesConfig.push({col:c, type:'bar', axis:'left'}); else App.workspace.seriesConfig = App.workspace.seriesConfig.filter(x=>x.col!==c); refreshSeriesUI(); };
         window.updType = (c, t) => { const i = App.workspace.seriesConfig.find(x=>x.col===c); if(i) i.type = t; refreshSeriesUI(); };
+        window.updAxis = (c, r) => { const i = App.workspace.seriesConfig.find(x=>x.col===c); if(i) i.axis = r?'right':'left'; refreshSeriesUI(); };
         
         function refreshSeriesUI() { updateSingleChart(); saveState(); const dd = document.querySelector('.dropdown-menu'); if(dd) { const btn = document.getElementById('btn-series-mgr'); const scroll = dd.querySelector('.custom-scroll').scrollTop; dd.remove(); toggleSeriesManager(btn); document.querySelector('.dropdown-menu .custom-scroll').scrollTop = scroll; } }
 
-        // --- CHART OPTIONS ---
         window.toggleChartOptions = (btn) => {
             const html = `<div class="settings-dropdown">
                 <div class="flex justify-between p-2"><span class="text-xs text-slate-300">Show Values</span><input type="checkbox" class="toggle-switch" onchange="toggleOpt('showValues',this.checked)" ${App.workspace.options.showValues?'checked':''}></div>
@@ -485,7 +457,6 @@
         };
         window.toggleOpt = (k, v) => { App.workspace.options[k] = v; updateSingleChart(); saveState(); };
 
-        // --- SINGLE CHART ENGINE (With Annotations) ---
         function updateSingleChart() {
             const f = App.files[App.activeFile];
             if(!f || !App.workspace.xAxis || !App.workspace.seriesConfig.length) {
@@ -494,10 +465,9 @@
             }
             document.getElementById('chart-hint').classList.add('hidden'); els.seriesLabel.innerText = `${App.workspace.seriesConfig.length} Series`;
 
-            // Pivot Data
             const xCol = App.workspace.xAxis; const pivot = {};
             f.filteredData.forEach(r => {
-                const k = r[xCol]||"(Blank)"; if(!pivot[k]) pivot[k]={_count:0}; pivot[k]._count++;
+                const k = r[xCol]||"(Blank)"; if(!pivot[k]) pivot[k]={};
                 App.workspace.seriesConfig.forEach(c => {
                     let v = r[c.col]; if(typeof v==='string') v=parseFloat(v.replace(/[^0-9.-]+/g,""));
                     if(!pivot[k][c.col]) pivot[k][c.col]=0; pivot[k][c.col]+=(isNaN(v)?0:v);
@@ -508,6 +478,7 @@
                 const h = (i*137)%360; const isL = cfg.type.match(/line|area/);
                 return {
                     label: cfg.col, data: labels.map(l=>pivot[l][cfg.col]), type: cfg.type==='area'?'line':cfg.type, fill: cfg.type==='area',
+                    yAxisID: cfg.axis==='right'?'y1':'y',
                     backgroundColor: isL?`hsla(${h},70%,50%,0.2)`:`hsla(${h},70%,60%,0.7)`, borderColor: `hsla(${h},70%,55%,1)`, borderWidth: 2, tension: App.workspace.options.tension,
                     datalabels: { display: App.workspace.options.showValues, color: '#fff', align: 'end', anchor: 'end', font: {size:10} }
                 };
@@ -516,14 +487,13 @@
             if(App.workspace.options.showTrendline && datasets.length) {
                 const d = datasets[0].data; const n = d.length; let sx=0, sy=0, sxy=0, sxx=0;
                 d.forEach((y,x)=>{ sx+=x; sy+=y; sxy+=x*y; sxx+=x*x; }); const m = (n*sxy-sx*sy)/(n*sxx-sx*sx); const b=(sy-m*sx)/n;
-                datasets.push({ label:'Trend', data:d.map((_,x)=>m*x+b), type:'line', borderDash:[5,5], borderColor:'#fff', borderWidth:1, pointRadius:0, fill:false });
+                datasets.push({ label:'Trend', data:d.map((_,x)=>m*x+b), type:'line', borderDash:[5,5], borderColor:'#fff', borderWidth:1, pointRadius:0, fill:false, yAxisID: datasets[0].yAxisID });
             }
             updateStatsBar(datasets);
 
             const ctx = document.getElementById('s-chart').getContext('2d');
             if(App.charts.single) App.charts.single.destroy();
 
-            // Annotation Plugin Hook
             const notePlugin = {
                 id: 'notePlugin',
                 afterDatasetsDraw(chart) {
@@ -531,12 +501,13 @@
                     const notes = App.workspace.annotations[App.activeFile] || {};
                     chart.data.labels.forEach((l, idx) => {
                          if(notes[idx]) {
-                             const meta = chart.getDatasetMeta(0);
-                             const x = meta.data[idx].x; const y = meta.data[idx].y;
+                             const meta = chart.getDatasetMeta(0); const x = meta.data[idx].x; const y = meta.data[idx].y;
                              ctx.save();
-                             ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Inter'; ctx.textAlign = 'center';
-                             ctx.fillText(notes[idx], x, y - 20);
-                             ctx.beginPath(); ctx.moveTo(x, y-15); ctx.lineTo(x, y-5); ctx.strokeStyle = '#fff'; ctx.stroke();
+                             ctx.fillStyle = 'rgba(15, 23, 42, 0.8)'; ctx.strokeStyle = '#94a3b8'; ctx.lineWidth = 1;
+                             const txt = notes[idx]; const w = ctx.measureText(txt).width + 10;
+                             ctx.fillRect(x - w/2, y - 40, w, 20); ctx.strokeRect(x - w/2, y - 40, w, 20);
+                             ctx.fillStyle = '#fff'; ctx.font = 'bold 10px Inter'; ctx.textAlign = 'center'; ctx.fillText(txt, x, y - 26);
+                             ctx.beginPath(); ctx.moveTo(x, y-20); ctx.lineTo(x, y-5); ctx.strokeStyle = '#94a3b8'; ctx.stroke();
                              ctx.restore();
                          }
                     });
@@ -549,8 +520,7 @@
                     responsive: true, maintainAspectRatio: false,
                     onClick: (e, els) => {
                         if(els.length > 0) {
-                            const idx = els[0].index;
-                            const notes = App.workspace.annotations[App.activeFile] || {};
+                            const idx = els[0].index; const notes = App.workspace.annotations[App.activeFile] || {};
                             const txt = prompt("Add Annotation:", notes[idx] || "");
                             if(txt !== null) {
                                 if(!App.workspace.annotations[App.activeFile]) App.workspace.annotations[App.activeFile] = {};
@@ -559,7 +529,11 @@
                             }
                         }
                     },
-                    scales: { x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }, y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } } }
+                    scales: { 
+                        x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }, 
+                        y: { position:'left', grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                        y1: { position:'right', display: datasets.some(d=>d.yAxisID=='y1'), grid: { drawOnChartArea: false }, ticks: { color: '#fb923c' } }
+                    }
                 }
             });
         }
@@ -570,80 +544,65 @@
             els.statsBar.classList.remove('hidden');
         }
 
-        /** =========================================
-         * DASHBOARD MODE
-         * ========================================= */
         function pinToDashboard() {
             if(!App.activeFile || !App.workspace.seriesConfig.length) return alert("Configure a chart first.");
-            App.dashboard.push({
+            // Freeze current config completely so it doesn't break if file changes
+            const snapshot = {
                 file: App.activeFile,
                 xAxis: App.workspace.xAxis,
                 series: JSON.parse(JSON.stringify(App.workspace.seriesConfig)),
+                // Snapshot data to allow dashboard to persist even if file deleted
+                dataSnapshot: JSON.parse(JSON.stringify(App.files[App.activeFile].filteredData)), 
                 id: Date.now()
-            });
+            };
+            App.dashboard.push(snapshot);
             alert("Chart pinned to Dashboard!");
             saveState();
         }
 
         function renderDashboard() {
-            const container = els.dashContainer;
-            container.innerHTML = '';
+            const container = els.dashContainer; container.innerHTML = '';
             if(App.dashboard.length === 0) { document.getElementById('dashboard-empty').classList.remove('hidden'); return; }
             document.getElementById('dashboard-empty').classList.add('hidden');
-
-            App.charts.dash.forEach(c => c.destroy());
-            App.charts.dash = [];
+            App.charts.dash.forEach(c => c.destroy()); App.charts.dash = [];
 
             App.dashboard.forEach((card, idx) => {
                 const div = document.createElement('div');
                 div.className = 'glass-panel rounded-xl p-4 flex flex-col h-[350px] relative';
-                div.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                        <h4 class="text-xs font-bold uppercase text-slate-400 truncate">${card.file}</h4>
-                        <button onclick="removeDashCard(${idx})" class="text-slate-600 hover:text-red-400"><i class="fa-solid fa-times"></i></button>
-                    </div>
-                    <div class="flex-grow relative"><canvas id="dash-c-${card.id}"></canvas></div>
-                `;
+                div.innerHTML = `<div class="flex justify-between items-center mb-2"><h4 class="text-xs font-bold uppercase text-slate-400 truncate">${card.file}</h4><button onclick="removeDashCard(${idx})" class="text-slate-600 hover:text-red-400"><i class="fa-solid fa-times"></i></button></div><div class="flex-grow relative"><canvas id="dash-c-${card.id}"></canvas></div>`;
                 container.appendChild(div);
 
-                // Render Chart
-                const f = App.files[card.file];
-                if(f) {
-                    const ctx = document.getElementById(`dash-c-${card.id}`).getContext('2d');
-                    // Aggregation logic (simplified duplicate from single)
-                    const pivot = {};
-                    f.filteredData.forEach(r => {
-                        const k = r[card.xAxis]||"(Blank)"; if(!pivot[k]) pivot[k]={};
-                        card.series.forEach(c => {
-                            let v = r[c.col]; if(typeof v==='string') v=parseFloat(v.replace(/[^0-9.-]+/g,""));
-                            if(!pivot[k][c.col]) pivot[k][c.col]=0; pivot[k][c.col]+=(isNaN(v)?0:v);
-                        });
+                const ctx = document.getElementById(`dash-c-${card.id}`).getContext('2d');
+                const pivot = {};
+                // Use data snapshot if available (V10 feature), else fallback to live file (legacy V9)
+                const sourceData = card.dataSnapshot || (App.files[card.file] ? App.files[card.file].filteredData : []);
+                
+                sourceData.forEach(r => {
+                    const k = r[card.xAxis]||"(Blank)"; if(!pivot[k]) pivot[k]={};
+                    card.series.forEach(c => {
+                        let v = r[c.col]; if(typeof v==='string') v=parseFloat(v.replace(/[^0-9.-]+/g,""));
+                        if(!pivot[k][c.col]) pivot[k][c.col]=0; pivot[k][c.col]+=(isNaN(v)?0:v);
                     });
-                    const lbs = Object.keys(pivot);
-                    const dsets = card.series.map((s, i) => ({
-                        label: s.col, data: lbs.map(l=>pivot[l][s.col]), backgroundColor: `hsla(${(i*100)%360},70%,60%,0.7)`
-                    }));
-                    
-                    App.charts.dash.push(new Chart(ctx, {
-                        type: 'bar', data: { labels: lbs, datasets: dsets },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
-                    }));
-                }
+                });
+                const lbs = Object.keys(pivot);
+                const dsets = card.series.map((s, i) => ({
+                    label: s.col, data: lbs.map(l=>pivot[l][s.col]), backgroundColor: `hsla(${(i*100)%360},70%,60%,0.7)`
+                }));
+                
+                App.charts.dash.push(new Chart(ctx, {
+                    type: 'bar', data: { labels: lbs, datasets: dsets },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } }
+                }));
             });
         }
         window.removeDashCard = (i) => { App.dashboard.splice(i,1); renderDashboard(); saveState(); };
         window.clearDashboard = () => { App.dashboard = []; renderDashboard(); saveState(); };
 
-
-        /** =========================================
-         * COMPARE MODE
-         * ========================================= */
         function loadCompareView() {
             const files = Object.keys(App.files); if(files.length===0) return;
             if(!App.compare.c1File) App.compare.c1File = files[0];
             if(!App.compare.c2File) App.compare.c2File = files.length > 1 ? files[1] : files[0];
             els.c1File.value = App.compare.c1File; els.c2File.value = App.compare.c2File;
-            
             setupCompareSide(1); setupCompareSide(2);
             if(files.length < 2) { els.c2Wrapper.classList.add('blur-sm','pointer-events-none'); els.c2Overlay.classList.remove('hidden'); }
             else { els.c2Wrapper.classList.remove('blur-sm','pointer-events-none'); els.c2Overlay.classList.add('hidden'); }
@@ -653,11 +612,9 @@
             const f = App.files[els[`c${id}File`].value]; if(!f) return;
             const xS=els[`c${id}X`], yS=els[`c${id}Y`];
             xS.innerHTML=''; yS.innerHTML=''; f.headers.forEach(h=>{xS.add(new Option(h,h)); yS.add(new Option(h,h));});
-            
             const svX=App.compare[`c${id}X`], svY=App.compare[`c${id}Y`];
             xS.value = (svX && f.headers.includes(svX)) ? svX : f.headers[0];
             yS.value = (svY && f.headers.includes(svY)) ? svY : (f.headers[1]||f.headers[0]);
-            
             renderCompareChart(id);
             renderHeaders(els[`c${id}File`].value, els[`c${id}Thead`], `c${id}`);
             renderTable(els[`c${id}Tbody`], f.filteredData, f.headers, null, true);
@@ -673,7 +630,6 @@
             const f = App.files[els[`c${id}File`].value]; const x=els[`c${id}X`].value, y=els[`c${id}Y`].value;
             const lbs = f.filteredData.map(d=>d[x]);
             const dat = f.filteredData.map(d=>{let v=d[y]; if(typeof v==='string')v=parseFloat(v.replace(/[^0-9.-]+/g,"")); return v||0;});
-            
             if(App.charts[`c${id}`]) App.charts[`c${id}`].destroy();
             const ctx = document.getElementById(`c${id}-chart`).getContext('2d');
             const col = id===1 ? '#3b82f6' : '#10b981';
@@ -683,14 +639,10 @@
             });
         }
 
-
-        /** =========================================
-         * SHARED (Tables, Filters, Exports)
-         * ========================================= */
         function renderHeaders(fname, thead, ctxId) {
             const f = App.files[fname];
             thead.innerHTML = f.headers.map(h => {
-                const act = f.columnFilters[h] && f.columnFilters[h].size > 0;
+                const act = f.columnFilters[h] !== undefined; // Highlight if filter key exists (even if empty/none selected)
                 return `<th class="px-4 py-3 bg-slate-900 border-b border-slate-700 whitespace-nowrap"><div class="flex items-center justify-between gap-2"><span class="font-bold text-slate-300">${h}</span><button class="filter-trigger p-1 rounded hover:bg-slate-700 ${act?'text-blue-400':'text-slate-600'}" onclick="toggleFilter('${fname}','${h}',this,'${ctxId}')"><i class="fa-solid fa-filter"></i></button></div></th>`;
             }).join('');
         }
@@ -703,7 +655,6 @@
 
         window.updCell = (f, r, c, el) => { App.files[f].filteredData[r][c] = el.innerText; App.dirty = true; clearTimeout(window._t); window._t=setTimeout(updateSingleChart, 500); };
 
-        // --- ENHANCED FILTER DROPDOWN ---
         window.toggleFilter = (fname, col, btn, ctxId) => {
             const f = App.files[fname];
             const vals = [...new Set(f.rawData.map(r => r[col]))].sort().slice(0, 100);
@@ -730,8 +681,18 @@
         window.filterAll = (state) => { document.querySelectorAll('.filter-list input').forEach(c => c.checked = state); };
         
         window.applyFilter = (f, c, btn, ctx) => {
-            const cbs = btn.closest('.dropdown-menu').querySelectorAll('input:checked');
-            App.files[f].columnFilters[c] = new Set(Array.from(cbs).map(cb=>cb.value));
+            const container = btn.closest('.dropdown-menu');
+            const cbs = container.querySelectorAll('.filter-list input:checked');
+            const total = container.querySelectorAll('.filter-list input').length;
+            
+            // Logic: If ALL selected, remove filter. If ANY unchecked, apply filter (highlight). 
+            // If "None" selected (0 checked), apply filter (highlight, 0 rows).
+            if(cbs.length === total && total > 0) {
+                delete App.files[f].columnFilters[c];
+            } else {
+                App.files[f].columnFilters[c] = new Set(Array.from(cbs).map(cb=>cb.value));
+            }
+            
             document.querySelector('.dropdown-menu').remove(); recalcFilter(f, ctx);
         };
         window.clearFilter = (f, c, ctx) => { delete App.files[f].columnFilters[c]; document.querySelector('.dropdown-menu').remove(); recalcFilter(f, ctx); };
@@ -743,7 +704,6 @@
             saveState();
         }
 
-        // Downloads
         window.downloadChart = (id, n) => { const c=document.getElementById(id); const a=document.createElement('a'); a.download=`${n}_${Date.now()}.png`; a.href=c.toDataURL(); a.click(); };
         window.downloadCombined = () => {
             const c1=document.getElementById('c1-chart'), c2=document.getElementById('c2-chart');
