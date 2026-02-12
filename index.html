@@ -3,706 +3,575 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataViz Pro V6 | Persistent Analytics</title>
+    <title>DataViz Pro | Multi-Series Analytics</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
+        /* --- Core Theme --- */
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
         
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-        /* Glassmorphism */
+        /* Glass & Components */
         .glass-panel {
             background: rgba(30, 41, 59, 0.7);
             backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.08);
         }
         
-        /* Chart Areas */
-        .chart-area-single { height: 50vh; min-height: 400px; }
-        .chart-area-compare { height: 40vh; min-height: 300px; }
-        
-        /* Table Styles */
-        .table-scroll-body { max-height: 400px; overflow-y: auto; }
-        
-        /* Excel Filter Dropdown */
-        .filter-dropdown {
-            position: fixed; /* Fixed to handle screen edges better */
+        .chart-container { position: relative; height: 60vh; min-height: 450px; width: 100%; }
+
+        /* Custom Multi-Select Dropdown */
+        .multi-select-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%; left: 0; right: 0;
             background: #1e293b;
             border: 1px solid #475569;
             border-radius: 0.5rem;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-            z-index: 9999;
-            width: 220px;
-            max-height: 300px;
-            display: flex;
-            flex-direction: column;
-            animation: fadeIn 0.1s ease-out;
+            max-height: 250px;
+            overflow-y: auto;
+            z-index: 50;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+            margin-top: 4px;
         }
-        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .multi-select-dropdown.active { display: block; }
         
-        .filter-search { padding: 0.5rem; border-bottom: 1px solid #334155; }
-        .filter-list { overflow-y: auto; flex-grow: 1; padding: 0.5rem; }
-        .filter-actions { padding: 0.5rem; border-top: 1px solid #334155; display: flex; justify-content: space-between; background: #1e293b; border-radius: 0 0 0.5rem 0.5rem; }
-        
-        /* Blur Slot for Compare */
-        .blur-slot { filter: blur(5px); pointer-events: none; opacity: 0.5; transition: all 0.5s; }
-        
+        .checkbox-item {
+            display: flex; align-items: center; padding: 8px 12px;
+            cursor: pointer; transition: background 0.2s; font-size: 0.85rem;
+        }
+        .checkbox-item:hover { background: #334155; }
+        .checkbox-item input { margin-right: 10px; accent-color: #3b82f6; }
+
         /* Loading Spinner */
-        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #3498db; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader { border: 3px solid rgba(255,255,255,0.1); border-top: 3px solid #3b82f6; border-radius: 50%; width: 24px; height: 24px; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        /* Chips for selected items */
+        .chip { background: #334155; padding: 2px 8px; border-radius: 4px; font-size: 10px; display: inline-flex; align-items: center; gap: 4px; border: 1px solid #475569; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col">
+<body class="min-h-screen flex flex-col overflow-hidden">
 
-    <header class="bg-slate-900 border-b border-slate-700 h-16 flex items-center justify-between px-6 sticky top-0 z-[100] shadow-lg shrink-0">
+    <header class="bg-slate-900/90 backdrop-blur border-b border-slate-700 h-16 flex items-center justify-between px-6 sticky top-0 z-[40] shadow-lg shrink-0">
         <div class="flex items-center gap-3">
-            <div class="bg-blue-600 text-white w-9 h-9 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-                <i class="fa-solid fa-chart-pie"></i>
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-600 text-white w-9 h-9 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
+                <i class="fa-solid fa-chart-line"></i>
             </div>
-            <h1 class="text-xl font-bold tracking-tight text-white hidden sm:block">DataViz <span class="text-blue-500">Pro</span></h1>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight text-white leading-tight">DataViz <span class="text-blue-500">Pro</span></h1>
+                <p class="text-[10px] text-slate-400 font-mono">SECURE • LOCAL • PERSISTENT</p>
+            </div>
         </div>
 
         <div class="flex items-center gap-4">
-            <div id="save-status" class="text-xs text-slate-500 font-mono hidden md:block"></div>
+            <div id="save-status" class="text-xs text-emerald-500 font-mono hidden md:block transition-opacity duration-500 opacity-0">Saved locally</div>
 
-            <button onclick="clearAllData()" class="text-slate-400 hover:text-red-400 text-xs flex items-center gap-1 transition mr-2" title="Clear all saved data">
-                <i class="fa-solid fa-trash"></i> <span class="hidden sm:inline">Clear Data</span>
+            <button onclick="clearAllData()" class="text-slate-400 hover:text-red-400 text-xs flex items-center gap-2 transition px-3 py-1.5 rounded hover:bg-slate-800" title="Clear all saved data">
+                <i class="fa-solid fa-trash-can"></i> <span class="hidden sm:inline">Reset App</span>
             </button>
 
             <input type="file" id="global-file-input" multiple accept=".xlsx, .xls, .csv" class="hidden">
             
-            <div class="bg-slate-800 p-1 rounded-lg border border-slate-700 flex shadow-sm">
-                <button id="btn-mode-single" class="px-4 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white shadow transition-all">Single</button>
-                <button id="btn-mode-compare" class="px-4 py-1.5 text-xs font-semibold rounded text-slate-400 hover:text-white transition-all">Compare</button>
-            </div>
+            <button onclick="triggerUpload()" class="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-xs font-bold shadow-lg shadow-blue-600/20 transition flex items-center gap-2 border border-blue-500">
+                <i class="fa-solid fa-upload"></i> <span class="hidden sm:inline">Import Data</span>
+            </button>
         </div>
     </header>
 
-    <main class="flex-grow p-4 md:p-6 w-full max-w-[1920px] mx-auto space-y-6 overflow-x-hidden pb-16">
+    <main class="flex-grow flex flex-col md:flex-row h-[calc(100vh-64px)] overflow-hidden">
+        
+        <aside class="w-full md:w-80 bg-slate-900 border-r border-slate-800 flex flex-col z-30 shrink-0 h-full overflow-y-auto">
+            <div class="p-4 space-y-6">
+                
+                <div>
+                    <label class="text-[10px] text-slate-400 font-bold uppercase mb-2 block tracking-wider">Active Dataset</label>
+                    <select id="s-file" class="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2.5 text-sm text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none transition"></select>
+                </div>
 
-        <div id="view-single" class="flex flex-col gap-6 w-full">
-            
-            <div class="glass-panel p-5 rounded-xl flex flex-wrap gap-6 items-end justify-between shadow-xl">
-                <div class="flex flex-wrap gap-4 items-end flex-grow">
-                    <div class="w-full md:w-64">
-                        <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Active File</label>
-                        <div class="flex gap-2">
-                            <select id="s-file" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none shadow-sm"></select>
-                            <button onclick="triggerUpload()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 rounded border border-blue-500 transition shadow-lg shadow-blue-600/20" title="Upload New File">
-                                <i class="fa-solid fa-plus"></i>
-                            </button>
+                <div class="border-t border-slate-800 my-2"></div>
+
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] text-blue-400 font-bold uppercase mb-1.5 block tracking-wider"><i class="fa-solid fa-arrows-left-right mr-1"></i> X-Axis (Category)</label>
+                        <select id="s-xaxis" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-white outline-none focus:border-blue-500"></select>
+                    </div>
+
+                    <div class="relative">
+                        <label class="text-[10px] text-emerald-400 font-bold uppercase mb-1.5 flex justify-between tracking-wider">
+                            <span><i class="fa-solid fa-arrows-up-down mr-1"></i> Y-Axis (Values)</span>
+                            <span id="y-count" class="text-slate-500 text-[9px] bg-slate-800 px-1.5 rounded">0 selected</span>
+                        </label>
+                        
+                        <button id="y-select-btn" class="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-left text-slate-300 outline-none focus:border-emerald-500 flex justify-between items-center relative">
+                            <span class="truncate">Select Columns...</span>
+                            <i class="fa-solid fa-chevron-down text-xs text-slate-500"></i>
+                        </button>
+                        
+                        <div id="y-dropdown" class="multi-select-dropdown">
+                            <div class="p-2 border-b border-slate-700 flex justify-between">
+                                <button onclick="toggleAllY(true)" class="text-[10px] text-blue-400 hover:text-white">Select All</button>
+                                <button onclick="toggleAllY(false)" class="text-[10px] text-slate-500 hover:text-white">Clear</button>
+                            </div>
+                            <div id="y-options-list"></div>
                         </div>
                     </div>
-                    
-                    <div class="flex gap-2 w-full md:w-auto flex-grow">
-                         <div class="w-1/2 md:w-40">
-                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">X-Axis</label>
-                            <select id="s-xaxis" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white outline-none"></select>
-                        </div>
-                        <div class="w-1/2 md:w-40">
-                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Y-Axis</label>
-                            <select id="s-yaxis" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white outline-none"></select>
-                        </div>
-                    </div>
-                    
-                    <div class="w-full md:w-36">
+                </div>
+
+                <div class="border-t border-slate-800 my-2"></div>
+
+                <div class="space-y-4">
+                    <div>
                         <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Chart Type</label>
-                        <select id="s-type" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white outline-none">
-                            <option value="bar">Bar Chart</option>
-                            <option value="line">Line Chart</option>
-                            <option value="pie">Pie Chart</option>
-                            <option value="doughnut">Doughnut</option>
-                            <option value="scatter">Scatter Plot</option>
-                            <option value="radar">Radar Chart</option>
-                        </select>
+                        <div class="grid grid-cols-3 gap-2">
+                            <button onclick="setChartType('bar')" class="type-btn active bg-slate-800 border border-slate-700 rounded p-2 text-center hover:bg-slate-700 transition" data-type="bar"><i class="fa-solid fa-chart-column text-blue-500"></i></button>
+                            <button onclick="setChartType('line')" class="type-btn bg-slate-800 border border-slate-700 rounded p-2 text-center hover:bg-slate-700 transition" data-type="line"><i class="fa-solid fa-chart-line text-emerald-500"></i></button>
+                            <button onclick="setChartType('pie')" class="type-btn bg-slate-800 border border-slate-700 rounded p-2 text-center hover:bg-slate-700 transition" data-type="pie"><i class="fa-solid fa-chart-pie text-purple-500"></i></button>
+                            <button onclick="setChartType('doughnut')" class="type-btn bg-slate-800 border border-slate-700 rounded p-2 text-center hover:bg-slate-700 transition" data-type="doughnut"><i class="fa-regular fa-circle text-orange-500"></i></button>
+                            <button onclick="setChartType('radar')" class="type-btn bg-slate-800 border border-slate-700 rounded p-2 text-center hover:bg-slate-700 transition" data-type="radar"><i class="fa-solid fa-bullseye text-red-500"></i></button>
+                            <button onclick="setChartType('scatter')" class="type-btn bg-slate-800 border border-slate-700 rounded p-2 text-center hover:bg-slate-700 transition" data-type="scatter"><i class="fa-solid fa-braille text-cyan-500"></i></button>
+                        </div>
                     </div>
-                </div>
 
-                <button onclick="downloadChart('s-chart', 'Analysis')" class="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded text-xs font-bold uppercase border border-slate-600 transition flex items-center gap-2 shadow-lg">
-                    <i class="fa-solid fa-download"></i> PNG
-                </button>
-            </div>
-
-            <div class="glass-panel rounded-xl p-4 shadow-xl chart-area-single relative">
-                <canvas id="s-chart"></canvas>
-            </div>
-
-            <div class="glass-panel rounded-xl overflow-hidden border-t-4 border-blue-600 shadow-xl flex flex-col">
-                <div class="bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
-                    <h3 class="font-bold text-sm text-slate-200"><i class="fa-solid fa-table text-blue-500 mr-2"></i>Data Spreadsheet View</h3>
-                    <span id="s-row-count" class="text-xs text-slate-500 font-mono bg-slate-900 px-2 py-1 rounded">0 rows</span>
-                </div>
-                <div class="overflow-x-auto bg-slate-900/50">
-                    <div class="table-scroll-body">
-                        <table class="w-full text-left text-sm text-slate-400 border-collapse">
-                            <thead class="bg-slate-900 text-xs uppercase sticky top-0 z-20 text-slate-300 shadow-md">
-                                <tr id="s-table-head"></tr>
-                            </thead>
-                            <tbody id="s-table-body" class="divide-y divide-slate-800"></tbody>
-                        </table>
+                    <div class="space-y-2">
+                        <label class="flex items-center justify-between cursor-pointer p-2 rounded hover:bg-slate-800 border border-transparent hover:border-slate-700 transition">
+                            <span class="text-xs text-slate-300">Show Data Labels</span>
+                            <input type="checkbox" id="toggle-labels" class="accent-blue-600" onchange="updateChart()">
+                        </label>
+                        <label class="flex items-center justify-between cursor-pointer p-2 rounded hover:bg-slate-800 border border-transparent hover:border-slate-700 transition">
+                            <span class="text-xs text-slate-300">Stack Bars</span>
+                            <input type="checkbox" id="toggle-stack" class="accent-blue-600" onchange="updateChart()">
+                        </label>
                     </div>
                 </div>
             </div>
-        </div>
-
-        <div id="view-compare" class="hidden flex-col gap-6 w-full">
             
-            <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
-                <span class="text-sm font-bold text-slate-200 ml-2">Comparison Mode</span>
-                <button onclick="downloadCombined()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded text-xs font-bold uppercase shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
-                    <i class="fa-solid fa-camera"></i> Combined Report
+            <div class="mt-auto p-4 border-t border-slate-800">
+                <button onclick="downloadChart()" class="w-full bg-slate-800 hover:bg-slate-700 text-white py-2 rounded border border-slate-600 text-xs font-bold uppercase transition flex items-center justify-center gap-2">
+                    <i class="fa-solid fa-download"></i> Export PNG
                 </button>
             </div>
+        </aside>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
-                <div class="flex flex-col gap-4">
-                    <div class="glass-panel p-3 rounded-lg border-l-4 border-blue-500 shadow-lg flex flex-col gap-2">
-                         <div class="flex gap-2">
-                            <select id="c1-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600 text-white outline-none"></select>
-                            <select id="c1-type" class="bg-slate-800 text-xs w-24 p-2 rounded border border-slate-600 text-white outline-none"><option value="bar">Bar</option><option value="line">Line</option><option value="pie">Pie</option></select>
+        <section class="flex-grow flex flex-col h-full overflow-hidden bg-slate-950/50 relative">
+            
+            <div class="flex-grow p-4 md:p-6 overflow-hidden flex flex-col">
+                <div class="glass-panel w-full h-full rounded-xl p-4 relative shadow-2xl flex flex-col">
+                    <div class="flex justify-between items-start mb-2 shrink-0">
+                        <div>
+                            <h2 id="chart-title" class="text-lg font-bold text-white">Analytics Overview</h2>
+                            <p id="chart-subtitle" class="text-xs text-slate-400">Select data to visualize</p>
                         </div>
                         <div class="flex gap-2">
-                            <select id="c1-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
-                            <select id="c1-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
-                        </div>
-                    </div>
-                    <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800">
-                        <canvas id="c1-chart"></canvas>
-                        <button onclick="downloadChart('c1-chart', 'Left_Chart')" class="absolute top-2 right-2 bg-slate-700/80 p-1.5 rounded text-xs text-white hover:bg-blue-600 transition"><i class="fa-solid fa-download"></i></button>
-                    </div>
-                    <div class="glass-panel rounded-lg overflow-hidden border border-slate-700 h-64 flex flex-col">
-                        <div class="bg-slate-900 px-3 py-2 text-xs font-bold text-slate-400 uppercase border-b border-slate-800">Preview: Left Data</div>
-                        <div class="overflow-auto flex-grow">
-                             <table class="w-full text-left text-xs text-slate-400"><thead class="bg-slate-950 sticky top-0"><tr id="c1-table-head"></tr></thead><tbody id="c1-table-body" class="divide-y divide-slate-800"></tbody></table>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="relative flex flex-col gap-4">
-                    <div id="c2-wrapper" class="flex flex-col gap-4 transition-all duration-300">
-                        <div class="glass-panel p-3 rounded-lg border-l-4 border-emerald-500 shadow-lg flex flex-col gap-2">
-                             <div class="flex gap-2">
-                                <select id="c2-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600 text-white outline-none"></select>
-                                <select id="c2-type" class="bg-slate-800 text-xs w-24 p-2 rounded border border-slate-600 text-white outline-none"><option value="bar">Bar</option><option value="line">Line</option><option value="pie">Pie</option></select>
-                            </div>
-                            <div class="flex gap-2">
-                                <select id="c2-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
-                                <select id="c2-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
-                            </div>
-                        </div>
-                        <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800">
-                            <canvas id="c2-chart"></canvas>
-                            <button onclick="downloadChart('c2-chart', 'Right_Chart')" class="absolute top-2 right-2 bg-slate-700/80 p-1.5 rounded text-xs text-white hover:bg-emerald-600 transition"><i class="fa-solid fa-download"></i></button>
-                        </div>
-                        <div class="glass-panel rounded-lg overflow-hidden border border-slate-700 h-64 flex flex-col">
-                            <div class="bg-slate-900 px-3 py-2 text-xs font-bold text-slate-400 uppercase border-b border-slate-800">Preview: Right Data</div>
-                            <div class="overflow-auto flex-grow">
-                                <table class="w-full text-left text-xs text-slate-400"><thead class="bg-slate-950 sticky top-0"><tr id="c2-table-head"></tr></thead><tbody id="c2-table-body" class="divide-y divide-slate-800"></tbody></table>
-                            </div>
+                             <div class="text-[10px] bg-slate-800 px-2 py-1 rounded text-slate-400 border border-slate-700">
+                                <i class="fa-solid fa-calculator mr-1"></i> Auto-Aggregated
+                             </div>
                         </div>
                     </div>
                     
-                    <div id="c2-overlay" class="absolute inset-0 flex items-center justify-center z-10 hidden">
-                        <div class="bg-slate-900/90 p-6 rounded-xl border border-slate-600 text-center shadow-2xl backdrop-blur">
-                            <p class="text-slate-300 mb-4 font-medium">Add a second file to compare</p>
-                            <button onclick="triggerUpload()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold shadow-lg"><i class="fa-solid fa-plus mr-2"></i> Upload File B</button>
-                        </div>
+                    <div class="relative flex-grow min-h-0 w-full">
+                        <canvas id="main-chart"></canvas>
                     </div>
                 </div>
             </div>
-        </div>
+
+            <div class="shrink-0 bg-slate-900 border-t border-slate-800">
+                 <button onclick="toggleTable()" class="w-full py-1 text-[10px] text-slate-500 hover:text-slate-300 flex justify-center items-center gap-1 hover:bg-slate-800 transition">
+                    <i class="fa-solid fa-table"></i> Toggle Data View
+                </button>
+            </div>
+
+            <div id="table-panel" class="h-0 transition-all duration-300 bg-slate-900 overflow-hidden flex flex-col border-t border-slate-800">
+                <div class="p-2 bg-slate-950 border-b border-slate-800 flex justify-between items-center">
+                    <span class="text-xs font-bold text-slate-400 uppercase tracking-wider ml-2">Source Data Preview</span>
+                    <span id="row-count" class="text-[10px] font-mono text-slate-500"></span>
+                </div>
+                <div class="overflow-auto flex-grow">
+                    <table class="w-full text-left text-xs text-slate-400 whitespace-nowrap">
+                        <thead class="bg-slate-900 sticky top-0 z-10 text-slate-200">
+                            <tr id="table-head"></tr>
+                        </thead>
+                        <tbody id="table-body" class="divide-y divide-slate-800"></tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
 
     </main>
 
-    <footer class="bg-slate-950 border-t border-slate-800 py-4 text-center mt-auto">
-        <p class="text-slate-500 text-sm font-medium">
-            Made with <span class="text-red-500 animate-pulse">❤️</span> by <span class="text-slate-300">Harsha Varthan E P</span>
-        </p>
-    </footer>
+    <div id="welcome-modal" class="fixed inset-0 bg-slate-950/90 z-[100] flex items-center justify-center p-4 backdrop-blur-md">
+        <div class="glass-panel p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-700 relative overflow-hidden">
+            <div class="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-1 bg-blue-500 blur-[20px]"></div>
 
-    <div id="welcome-modal" class="fixed inset-0 bg-slate-950/90 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-slate-900 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-800">
-            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/30">
-                <i class="fa-solid fa-database text-2xl text-white"></i>
+            <div class="w-16 h-16 bg-gradient-to-tr from-slate-800 to-slate-700 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner border border-slate-600">
+                <i class="fa-solid fa-layer-group text-3xl text-blue-400"></i>
             </div>
-            <h2 class="text-2xl font-bold text-white mb-2">Welcome Back!</h2>
-            <p id="welcome-text" class="text-slate-400 mb-8 text-sm">Upload data to visualize locally.</p>
-            <div id="restore-section" class="hidden mb-4 p-3 bg-slate-800 rounded border border-slate-700">
-                <p class="text-xs text-emerald-400 mb-2"><i class="fa-solid fa-clock-rotate-left mr-1"></i> Found saved session</p>
-                <button onclick="restoreSession()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded font-bold text-sm mb-2 transition">Resume Session</button>
-                <button onclick="clearAllData()" class="text-xs text-slate-500 hover:text-red-400 underline">Delete & Start New</button>
+            
+            <h2 class="text-2xl font-bold text-white mb-2">Welcome Back</h2>
+            <p id="welcome-text" class="text-slate-400 mb-8 text-sm leading-relaxed">
+                Secure, server-free analytics. <br>Your data never leaves this browser.
+            </p>
+
+            <div id="restore-section" class="hidden mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50 text-left">
+                <div class="flex items-center gap-3 mb-3">
+                    <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
+                    <p class="text-xs text-slate-300 font-medium">Previous session found</p>
+                </div>
+                <button onclick="restoreSession()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2.5 rounded-lg font-bold text-sm transition shadow-lg shadow-emerald-900/20">
+                    Resume Dashboard
+                </button>
             </div>
-            <button id="upload-btn" onclick="triggerUpload()" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2">
-                <i class="fa-solid fa-upload"></i> Upload New File
+
+            <button onclick="triggerUpload()" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-6 py-3.5 rounded-xl font-bold transition shadow-xl shadow-blue-900/20 flex items-center justify-center gap-2 group">
+                <i class="fa-solid fa-plus group-hover:scale-110 transition-transform"></i> Create New Analysis
             </button>
+            
+            <p class="mt-4 text-[10px] text-slate-600">Supports .xlsx, .xls, .csv</p>
         </div>
     </div>
 
     <script>
-        /** * INDEXED DB WRAPPER FOR PERSISTENCE 
-         * Handles storing large JSON objects (Excel data) in browser
-         */
-        const DB_NAME = 'DataVizDB_V1';
-        const STORE_NAME = 'files';
+        // --- 1. CONFIG & UTILS ---
+        Chart.register(ChartDataLabels);
         
+        const COLORS = [
+            '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', 
+            '#ec4899', '#06b6d4', '#84cc16', '#f97316', '#6366f1'
+        ];
+
+        // --- 2. INDEXED DB (Persistence Layer) ---
+        const DB_NAME = 'DataVizPro_DB';
         const dbPromise = new Promise((resolve, reject) => {
-            const request = indexedDB.open(DB_NAME, 1);
-            request.onupgradeneeded = (e) => {
-                e.target.result.createObjectStore(STORE_NAME);
-            };
-            request.onsuccess = (e) => resolve(e.target.result);
-            request.onerror = (e) => reject(e);
+            const req = indexedDB.open(DB_NAME, 2); // Bump version
+            req.onupgradeneeded = (e) => e.target.result.createObjectStore('files');
+            req.onsuccess = (e) => resolve(e.target.result);
+            req.onerror = reject;
         });
 
-        async function dbSave(key, val) {
-            const db = await dbPromise;
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_NAME, 'readwrite');
-                tx.objectStore(STORE_NAME).put(val, key);
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject();
-            });
-        }
-
-        async function dbGet(key) {
+        async function dbOp(type, key, val) {
             const db = await dbPromise;
             return new Promise((resolve) => {
-                const tx = db.transaction(STORE_NAME, 'readonly');
-                const req = tx.objectStore(STORE_NAME).get(key);
+                const tx = db.transaction('files', type === 'get' ? 'readonly' : 'readwrite');
+                const store = tx.objectStore('files');
+                const req = type === 'put' ? store.put(val, key) : type === 'get' ? store.get(key) : store.clear();
                 req.onsuccess = () => resolve(req.result);
+                tx.oncomplete = () => resolve();
             });
         }
 
-        async function dbClear() {
-            const db = await dbPromise;
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).clear();
-            return new Promise((resolve) => { tx.oncomplete = () => resolve(); });
-        }
-
-        /** APP STATE **/
+        // --- 3. STATE MANAGEMENT ---
         const App = {
-            files: {}, 
+            files: {},
             activeFile: null,
-            activeMode: 'single',
-            charts: { single: null, c1: null, c2: null },
-            dirty: false // Flag to trigger save
+            config: {
+                xKey: null,
+                yKeys: [], // Array for Multi-Series
+                type: 'bar',
+                showLabels: false,
+                stack: false
+            },
+            chartInstance: null
         };
 
         const els = {
             input: document.getElementById('global-file-input'),
             modal: document.getElementById('welcome-modal'),
-            restoreSec: document.getElementById('restore-section'),
-            welcomeText: document.getElementById('welcome-text'),
+            fileSelect: document.getElementById('s-file'),
+            xSelect: document.getElementById('s-xaxis'),
+            yBtn: document.getElementById('y-select-btn'),
+            yDropdown: document.getElementById('y-dropdown'),
+            yList: document.getElementById('y-options-list'),
             saveStatus: document.getElementById('save-status'),
-            
-            viewSingle: document.getElementById('view-single'),
-            viewCompare: document.getElementById('view-compare'),
-            btnSingle: document.getElementById('btn-mode-single'),
-            btnCompare: document.getElementById('btn-mode-compare'),
-            
-            // Single
-            sFile: document.getElementById('s-file'), sX: document.getElementById('s-xaxis'), sY: document.getElementById('s-yaxis'), sType: document.getElementById('s-type'),
-            sThead: document.getElementById('s-table-head'), sTbody: document.getElementById('s-table-body'), sCount: document.getElementById('s-row-count'),
-            
-            // Compare
-            c1File: document.getElementById('c1-file'), c1X: document.getElementById('c1-xaxis'), c1Y: document.getElementById('c1-yaxis'), c1Type: document.getElementById('c1-type'), c1Thead: document.getElementById('c1-table-head'), c1Tbody: document.getElementById('c1-table-body'),
-            c2File: document.getElementById('c2-file'), c2X: document.getElementById('c2-xaxis'), c2Y: document.getElementById('c2-yaxis'), c2Type: document.getElementById('c2-type'), c2Thead: document.getElementById('c2-table-head'), c2Tbody: document.getElementById('c2-table-body'),
-            c2Wrapper: document.getElementById('c2-wrapper'), c2Overlay: document.getElementById('c2-overlay'),
+            tablePanel: document.getElementById('table-panel')
         };
 
-        // --- INIT ---
-        (async function checkStorage() {
-            const savedState = await dbGet('appState');
-            if(savedState && Object.keys(savedState.files).length > 0) {
-                els.restoreSec.classList.remove('hidden');
-                els.welcomeText.innerText = `Found ${Object.keys(savedState.files).length} files from previous session.`;
-                document.getElementById('upload-btn').classList.add('hidden');
+        // --- 4. INITIALIZATION ---
+        (async function init() {
+            const savedState = await dbOp('get', 'appState');
+            if(savedState && savedState.files && Object.keys(savedState.files).length > 0) {
+                document.getElementById('restore-section').classList.remove('hidden');
+                document.getElementById('welcome-text').innerText = `Ready to resume with ${Object.keys(savedState.files).length} datasets.`;
             }
         })();
 
         async function restoreSession() {
-            const saved = await dbGet('appState');
+            const saved = await dbOp('get', 'appState');
             if(saved) {
                 App.files = saved.files;
-                App.activeFile = saved.activeFile;
-                // Rehydrate Sets from Arrays (JSON stringify converts Sets to Arrays)
-                Object.values(App.files).forEach(f => {
-                    Object.keys(f.columnFilters).forEach(col => {
-                        f.columnFilters[col] = new Set(f.columnFilters[col]);
-                    });
-                });
+                App.activeFile = saved.activeFile || Object.keys(App.files)[0];
+                App.config = saved.config || App.config;
                 els.modal.style.display = 'none';
-                initUI();
+                renderUI();
             }
         }
 
+        // --- 5. DATA INGESTION ---
+        function triggerUpload() { els.input.click(); }
+        
+        els.input.addEventListener('change', async (e) => {
+            const files = Array.from(e.target.files);
+            if(!files.length) return;
+            els.modal.style.display = 'none';
+
+            for(const f of files) {
+                const data = await f.arrayBuffer();
+                const wb = XLSX.read(data, { type: 'array' });
+                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: 0 }); // defval 0 helps charts
+                
+                if(json.length) {
+                    const headers = Object.keys(json[0]);
+                    App.files[f.name] = { data: json, headers: headers };
+                    App.activeFile = f.name;
+                    
+                    // Auto-Guess Config
+                    App.config.xKey = headers.find(h => /date|month|year|name|region/i.test(h)) || headers[0];
+                    // Find all number columns for Y
+                    const numberCols = headers.filter(h => typeof json[0][h] === 'number');
+                    App.config.yKeys = numberCols.length > 0 ? [numberCols[0]] : [headers[1]];
+                }
+            }
+            renderUI();
+            saveState();
+        });
+
+        // --- 6. UI RENDERING ---
+        function renderUI() {
+            if(!App.activeFile) return;
+            const f = App.files[App.activeFile];
+
+            // 1. Populate File Select
+            els.fileSelect.innerHTML = Object.keys(App.files).map(n => `<option value="${n}">${n}</option>`).join('');
+            els.fileSelect.value = App.activeFile;
+
+            // 2. Populate X-Axis
+            els.xSelect.innerHTML = f.headers.map(h => `<option value="${h}">${h}</option>`).join('');
+            els.xSelect.value = App.config.xKey;
+
+            // 3. Populate Y-Axis (Multi-Select)
+            renderYDropdown(f.headers);
+
+            // 4. Update Chart Type Buttons
+            document.querySelectorAll('.type-btn').forEach(b => {
+                b.classList.toggle('bg-blue-600', b.dataset.type === App.config.type);
+                b.classList.toggle('text-white', b.dataset.type === App.config.type);
+                if(b.dataset.type !== App.config.type) b.classList.add('bg-slate-800');
+            });
+            
+            // 5. Update Toggles
+            document.getElementById('toggle-labels').checked = App.config.showLabels;
+            document.getElementById('toggle-stack').checked = App.config.stack;
+
+            // 6. Render Components
+            updateChart();
+            renderTable();
+        }
+
+        function renderYDropdown(headers) {
+            els.yList.innerHTML = headers.map(h => `
+                <label class="checkbox-item text-slate-300">
+                    <input type="checkbox" value="${h}" 
+                        ${App.config.yKeys.includes(h) ? 'checked' : ''} 
+                        onchange="toggleYKey('${h}')">
+                    <span class="truncate">${h}</span>
+                </label>
+            `).join('');
+            updateYButtonLabel();
+        }
+
+        // --- 7. INTERACTION LOGIC ---
+        els.fileSelect.addEventListener('change', (e) => { App.activeFile = e.target.value; renderUI(); saveState(); });
+        els.xSelect.addEventListener('change', (e) => { App.config.xKey = e.target.value; updateChart(); saveState(); });
+
+        // Y-Axis Custom Logic
+        els.yBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            els.yDropdown.classList.toggle('active');
+        });
+        document.addEventListener('click', (e) => {
+            if(!els.yDropdown.contains(e.target) && !els.yBtn.contains(e.target)) {
+                els.yDropdown.classList.remove('active');
+            }
+        });
+
+        window.toggleYKey = (key) => {
+            if(App.config.yKeys.includes(key)) {
+                App.config.yKeys = App.config.yKeys.filter(k => k !== key);
+            } else {
+                App.config.yKeys.push(key);
+            }
+            updateYButtonLabel();
+            updateChart();
+            saveState();
+        };
+
+        window.toggleAllY = (select) => {
+            const f = App.files[App.activeFile];
+            App.config.yKeys = select ? [...f.headers] : [];
+            renderYDropdown(f.headers);
+            updateChart();
+            saveState();
+        };
+
+        function updateYButtonLabel() {
+            const count = App.config.yKeys.length;
+            document.getElementById('y-count').innerText = `${count} selected`;
+            els.yBtn.querySelector('span').innerText = count === 0 ? "Select Columns..." : 
+                count === 1 ? App.config.yKeys[0] : `${App.config.yKeys[0]} + ${count-1} more`;
+        }
+
+        window.setChartType = (t) => { App.config.type = t; renderUI(); saveState(); };
+
+        // --- 8. CHART ENGINE (The Brain) ---
+        function updateChart() {
+            const ctx = document.getElementById('main-chart').getContext('2d');
+            const f = App.files[App.activeFile];
+            
+            // 1. Pivot / Aggregate Data (Excel Pivot Logic)
+            const groupedData = {};
+            f.data.forEach(row => {
+                const xVal = row[App.config.xKey];
+                if(!groupedData[xVal]) groupedData[xVal] = { _count: 0 };
+                
+                App.config.yKeys.forEach(yk => {
+                    // Clean number (remove $ or ,)
+                    let val = row[yk];
+                    if(typeof val === 'string') val = parseFloat(val.replace(/[^0-9.-]+/g,""));
+                    if(isNaN(val)) val = 0;
+                    
+                    groupedData[xVal][yk] = (groupedData[xVal][yk] || 0) + val;
+                });
+                groupedData[xVal]._count++;
+            });
+
+            const labels = Object.keys(groupedData);
+            
+            // 2. Build Datasets
+            const datasets = App.config.yKeys.map((yk, index) => {
+                const color = COLORS[index % COLORS.length];
+                const data = labels.map(l => groupedData[l][yk]); // Sum
+                
+                return {
+                    label: yk,
+                    data: data,
+                    backgroundColor: App.config.type === 'line' ? color + '20' : color + 'CC', // Transparent for line
+                    borderColor: color,
+                    borderWidth: 2,
+                    tension: 0.3,
+                    pointRadius: 3,
+                    fill: App.config.type === 'line' || App.config.type === 'radar'
+                };
+            });
+
+            // 3. Destroy & Recreate
+            if(App.chartInstance) App.chartInstance.destroy();
+
+            App.chartInstance = new Chart(ctx, {
+                type: App.config.type,
+                data: { labels, datasets },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top', labels: { color: '#94a3b8', font: {size: 11} } },
+                        datalabels: {
+                            display: App.config.showLabels,
+                            color: '#fff',
+                            anchor: 'end', align: 'top',
+                            font: { weight: 'bold', size: 10 },
+                            formatter: (val) => val > 1000 ? (val/1000).toFixed(1)+'k' : val
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 23, 42, 0.9)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#cbd5e1',
+                            borderColor: '#334155', borderWidth: 1
+                        }
+                    },
+                    scales: {
+                        x: { 
+                            display: !['pie','doughnut','radar'].includes(App.config.type),
+                            grid: { color: '#1e293b' }, ticks: { color: '#64748b' },
+                            stacked: App.config.stack
+                        },
+                        y: { 
+                            display: !['pie','doughnut','radar'].includes(App.config.type),
+                            grid: { color: '#1e293b' }, ticks: { color: '#64748b' },
+                            stacked: App.config.stack
+                        }
+                    }
+                }
+            });
+
+            // Update Header Text
+            document.getElementById('chart-title').innerText = App.config.yKeys.length > 0 
+                ? `${App.config.yKeys.join(' & ')} Analysis` 
+                : 'Select Y-Axis Columns';
+            document.getElementById('chart-subtitle').innerText = `Grouped by ${App.config.xKey}`;
+        }
+
+        // --- 9. TABLE VIEW ---
+        function renderTable() {
+            const f = App.files[App.activeFile];
+            const thead = document.getElementById('table-head');
+            const tbody = document.getElementById('table-body');
+            
+            thead.innerHTML = f.headers.map(h => `<th class="px-4 py-3 bg-slate-900 border-b border-slate-700">${h}</th>`).join('');
+            
+            // Limit to 100 rows for performance
+            const previewRows = f.data.slice(0, 100);
+            tbody.innerHTML = previewRows.map(row => `
+                <tr class="hover:bg-slate-800 transition">
+                    ${f.headers.map(h => `<td class="px-4 py-2 border-b border-slate-800 text-slate-400">${row[h] || ''}</td>`).join('')}
+                </tr>
+            `).join('');
+            
+            document.getElementById('row-count').innerText = `Showing 100 of ${f.data.length} rows`;
+        }
+
+        function toggleTable() {
+            const p = els.tablePanel;
+            p.style.height = p.style.height === '300px' ? '0px' : '300px';
+        }
+
+        // --- 10. SAVING & EXPORT ---
+        async function saveState() {
+            els.saveStatus.style.opacity = '1';
+            await dbOp('put', 'appState', {
+                files: App.files,
+                activeFile: App.activeFile,
+                config: App.config
+            });
+            setTimeout(() => els.saveStatus.style.opacity = '0', 2000);
+        }
+
         function clearAllData() {
-            if(confirm("Are you sure? This will delete all stored files.")) {
-                dbClear();
+            if(confirm("Delete all data and reset?")) {
+                dbOp('clear');
                 location.reload();
             }
         }
 
-        async function saveState() {
-            if(!App.dirty) return;
-            els.saveStatus.innerText = "Saving...";
-            
-            // Convert Sets to Arrays for storage
-            const serializableFiles = JSON.parse(JSON.stringify(App.files));
-            Object.keys(App.files).forEach(fname => {
-                const f = App.files[fname];
-                Object.keys(f.columnFilters).forEach(col => {
-                    serializableFiles[fname].columnFilters[col] = Array.from(f.columnFilters[col]);
-                });
-            });
-
-            await dbSave('appState', {
-                files: serializableFiles,
-                activeFile: App.activeFile
-            });
-            
-            App.dirty = false;
-            els.saveStatus.innerText = "Saved";
-            setTimeout(() => els.saveStatus.innerText = "", 2000);
-        }
-
-        // --- EVENT LISTENERS ---
-        els.input.addEventListener('change', handleUpload);
-        els.btnSingle.addEventListener('click', () => switchMode('single'));
-        els.btnCompare.addEventListener('click', () => switchMode('compare'));
-        
-        // Single View
-        els.sFile.addEventListener('change', (e) => loadSingleFile(e.target.value));
-        [els.sX, els.sY, els.sType].forEach(e => e.addEventListener('change', updateSingleChart));
-
-        // Compare View
-        [els.c1File, els.c1X, els.c1Y, els.c1Type].forEach(e => e.addEventListener('change', () => updateComparePanel(1)));
-        [els.c2File, els.c2X, els.c2Y, els.c2Type].forEach(e => e.addEventListener('change', () => updateComparePanel(2)));
-        els.c1File.addEventListener('change', (e) => { populateAxes(els.c1X, els.c1Y, e.target.value); updateComparePanel(1); });
-        els.c2File.addEventListener('change', (e) => { populateAxes(els.c2X, els.c2Y, e.target.value); updateComparePanel(2); });
-
-        // Global Click to Close Filters
-        document.addEventListener('click', (e) => {
-            if (!e.target.closest('.filter-dropdown') && !e.target.closest('.filter-trigger')) {
-                document.querySelectorAll('.filter-dropdown').forEach(d => d.remove());
-            }
-        });
-
-        function triggerUpload() { els.input.click(); }
-
-        function handleUpload(e) {
-            const files = Array.from(e.target.files);
-            if (!files.length) return;
-            els.modal.style.display = 'none';
-
-            let count = 0;
-            files.forEach(f => {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const data = new Uint8Array(ev.target.result);
-                    const wb = XLSX.read(data, { type: 'array' });
-                    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
-
-                    if(json.length) {
-                        const headers = Object.keys(json[0]);
-                        App.files[f.name] = { 
-                            rawData: json, filteredData: json, headers: headers, columnFilters: {} 
-                        };
-                        App.activeFile = f.name;
-                        App.dirty = true;
-                    }
-                    count++;
-                    if(count === files.length) {
-                        initUI();
-                        saveState();
-                    }
-                };
-                reader.readAsArrayBuffer(f);
-            });
-            e.target.value = '';
-        }
-
-        function initUI() {
-            populateFileSelects();
-            if(App.activeMode === 'single') loadSingleFile(App.activeFile);
-            else setupCompareLayout();
-        }
-
-        function populateFileSelects() {
-            const names = Object.keys(App.files);
-            [els.sFile, els.c1File, els.c2File].forEach(sel => {
-                const v = sel.value; sel.innerHTML = '';
-                names.forEach(n => sel.add(new Option(n,n)));
-                if(names.includes(v)) sel.value = v; else if(App.activeFile) sel.value = App.activeFile;
-            });
-        }
-
-        function switchMode(mode) {
-            App.activeMode = mode;
-            if(mode === 'single') {
-                els.viewSingle.classList.remove('hidden');
-                els.viewCompare.classList.add('hidden');
-                els.viewCompare.classList.remove('flex');
-                els.btnSingle.classList.add('bg-blue-600', 'text-white'); els.btnSingle.classList.remove('text-slate-400');
-                els.btnCompare.classList.remove('bg-blue-600', 'text-white'); els.btnCompare.classList.add('text-slate-400');
-                if(App.activeFile) loadSingleFile(App.activeFile);
-            } else {
-                els.viewSingle.classList.add('hidden');
-                els.viewCompare.classList.remove('hidden');
-                els.viewCompare.classList.add('flex');
-                els.btnCompare.classList.add('bg-blue-600', 'text-white'); els.btnCompare.classList.remove('text-slate-400');
-                els.btnSingle.classList.remove('bg-blue-600', 'text-white'); els.btnSingle.classList.add('text-slate-400');
-                setupCompareLayout();
-            }
-        }
-
-        // --- FILTERING LOGIC (With Adaptive Positioning) ---
-        function renderHeaders(fname, thead, contextId) {
-            const file = App.files[fname];
-            thead.innerHTML = file.headers.map(h => {
-                const isFiltered = file.columnFilters[h] && file.columnFilters[h].size > 0;
-                return `
-                <th class="px-4 py-3 bg-slate-900 border-b border-slate-700 whitespace-nowrap group select-none relative">
-                    <div class="flex items-center justify-between gap-2">
-                        <span>${h}</span>
-                        <button class="filter-trigger text-xs p-1 rounded hover:bg-slate-700 ${isFiltered ? 'text-blue-400' : 'text-slate-600'}" 
-                                onclick="toggleFilter('${fname}', '${h}', this, '${contextId}')">
-                            <i class="fa-solid fa-filter"></i>
-                        </button>
-                    </div>
-                </th>`;
-            }).join('');
-        }
-
-        window.toggleFilter = (fname, col, btn, contextId) => {
-            const existing = document.querySelector('.filter-dropdown');
-            if(existing) existing.remove();
-
-            const file = App.files[fname];
-            const uniqueVals = [...new Set(file.rawData.map(r => r[col]))].sort();
-            const activeSet = file.columnFilters[col]; // undefined = all checked
-
-            const dd = document.createElement('div');
-            dd.className = 'filter-dropdown';
-            
-            dd.innerHTML = `
-                <div class="filter-search"><input type="text" placeholder="Search..." class="w-full bg-slate-800 border border-slate-600 rounded px-2 py-1 text-xs text-white outline-none" onkeyup="filterList(this)"></div>
-                <div class="filter-list">
-                    ${uniqueVals.map(v => {
-                        const checked = activeSet ? activeSet.has(String(v)) : true;
-                        return `<label class="flex items-center gap-2 p-1 hover:bg-slate-700 rounded cursor-pointer text-xs text-slate-300">
-                            <input type="checkbox" value="${v}" ${checked ? 'checked' : ''} class="accent-blue-600"> <span class="truncate">${v}</span>
-                        </label>`;
-                    }).join('')}
-                </div>
-                <div class="filter-actions">
-                    <button class="text-xs text-blue-400 font-bold" onclick="applyFilter('${fname}', '${col}', this, '${contextId}')">Apply</button>
-                    <button class="text-xs text-slate-500" onclick="clearFilter('${fname}', '${col}', '${contextId}')">Clear</button>
-                </div>
-            `;
-            document.body.appendChild(dd);
-
-            // Adaptive Positioning
-            const rect = btn.getBoundingClientRect();
-            const ddHeight = 300; // max height
-            const spaceBelow = window.innerHeight - rect.bottom;
-            
-            dd.style.left = `${rect.left}px`;
-            if (spaceBelow < ddHeight) {
-                dd.style.top = `${rect.top - dd.offsetHeight}px`; // This needs offsetHeight, but its hidden. 
-                // Fix: use bottom positioning
-                dd.style.top = 'auto';
-                dd.style.bottom = `${window.innerHeight - rect.top}px`;
-            } else {
-                dd.style.top = `${rect.bottom + 5}px`;
-            }
-        };
-
-        window.filterList = (inp) => {
-            const term = inp.value.toLowerCase();
-            inp.closest('.filter-dropdown').querySelectorAll('.filter-list label').forEach(lbl => {
-                lbl.style.display = lbl.innerText.toLowerCase().includes(term) ? 'flex' : 'none';
-            });
-        };
-
-        window.applyFilter = (fname, col, btn, contextId) => {
-            const container = btn.closest('.filter-dropdown');
-            const cbs = container.querySelectorAll('input[type="checkbox"]');
-            const newSet = new Set();
-            let all = true;
-            cbs.forEach(cb => { if(cb.checked) newSet.add(cb.value); else all = false; });
-            
-            const file = App.files[fname];
-            if(all) delete file.columnFilters[col]; else file.columnFilters[col] = newSet;
-            
-            container.remove();
-            processData(fname);
-            refreshView(contextId);
-            App.dirty = true; saveState();
-        };
-
-        window.clearFilter = (fname, col, contextId) => {
-            delete App.files[fname].columnFilters[col];
-            document.querySelector('.filter-dropdown').remove();
-            processData(fname);
-            refreshView(contextId);
-            App.dirty = true; saveState();
-        };
-
-        function processData(fname) {
-            const f = App.files[fname];
-            f.filteredData = f.rawData.filter(r => {
-                return Object.entries(f.columnFilters).every(([c, set]) => set.has(String(r[c])));
-            });
-        }
-
-        function refreshView(contextId) {
-            if(contextId === 'single') loadSingleFile(App.activeFile);
-            else if(contextId.startsWith('c')) updateComparePanel(contextId === 'c1' ? 1 : 2);
-        }
-
-        // --- RENDER LOGIC ---
-        function renderTable(tbody, data, headers, countEl) {
-            const rows = data.slice(0, 100);
-            tbody.innerHTML = rows.map(r => `
-                <tr class="hover:bg-slate-800 border-b border-slate-800 transition">
-                    ${headers.map(h => `<td class="px-4 py-2 truncate max-w-[120px]">${r[h]}</td>`).join('')}
-                </tr>`).join('');
-            if(countEl) countEl.innerText = `${data.length} rows`;
-        }
-
-        function loadSingleFile(fname) {
-            App.activeFile = fname;
-            els.sFile.value = fname;
-            const f = App.files[fname];
-            populateAxes(els.sX, els.sY, fname);
-            autoGuess(els.sX, els.sY, f.headers);
-            renderHeaders(fname, els.sThead, 'single');
-            renderTable(els.sTbody, f.filteredData, f.headers, els.sCount);
-            updateSingleChart();
-            App.dirty = true; saveState();
-        }
-
-        function updateSingleChart() {
-            const f = App.files[App.activeFile];
-            renderChart('s-chart', 'single', f.filteredData, els.sX.value, els.sY.value, els.sType.value, App.activeFile);
-        }
-
-        function setupCompareLayout() {
-            const files = Object.keys(App.files);
-            if(files.length === 1) {
-                // 1 File Mode
-                els.c1File.value = files[0]; populateAxes(els.c1X, els.c1Y, files[0]);
-                autoGuess(els.c1X, els.c1Y, App.files[files[0]].headers);
-                updateComparePanel(1);
-                els.c2Wrapper.classList.add('blur-slot');
-                els.c2Overlay.classList.remove('hidden');
-            } else if(files.length > 1) {
-                // 2 File Mode
-                els.c2Wrapper.classList.remove('blur-slot');
-                els.c2Overlay.classList.add('hidden');
-                if(!els.c1File.value) els.c1File.value = files[0];
-                if(!els.c2File.value || els.c2File.value === els.c1File.value) els.c2File.value = files[1];
-                populateAxes(els.c1X, els.c1Y, els.c1File.value);
-                populateAxes(els.c2X, els.c2Y, els.c2File.value);
-                updateComparePanel(1);
-                updateComparePanel(2);
-            }
-        }
-
-        function updateComparePanel(id) {
-            const fname = els[`c${id}File`].value;
-            const f = App.files[fname];
-            if(!f) return;
-            renderHeaders(fname, els[`c${id}Thead`], `c${id}`);
-            renderTable(els[`c${id}Tbody`], f.filteredData, f.headers, null);
-            renderChart(`c${id}-chart`, `c${id}`, f.filteredData, els[`c${id}X`].value, els[`c${id}Y`].value, els[`c${id}Type`].value, fname);
-        }
-
-        // --- CHART & UTILS ---
-        function populateAxes(x, y, fname) {
-            if(!App.files[fname]) return;
-            const h = App.files[fname].headers;
-            const vx=x.value, vy=y.value;
-            x.innerHTML = ''; y.innerHTML = '';
-            h.forEach(k => { x.add(new Option(k,k)); y.add(new Option(k,k)); });
-            if(h.includes(vx)) x.value=vx; if(h.includes(vy)) y.value=vy;
-        }
-
-        function autoGuess(x, y, h) {
-            if(x.value && y.value) return;
-            let l=h[0], v=h[1]||h[0];
-            h.forEach(s => { const k=s.toLowerCase(); if(k.match(/date|name|month/)) l=s; if(k.match(/val|total|sales|amt/)) v=s; });
-            x.value=l; y.value=v;
-        }
-
-        function renderChart(cid, k, data, xk, yk, type, title) {
-            const ctx = document.getElementById(cid).getContext('2d');
-            const lbs = data.map(d => d[xk]);
-            const vals = data.map(d => { let v=d[yk]; if(typeof v==='string') v=parseFloat(v.replace(/[^0-9.-]+/g,"")); return v||0; });
-
-            if(App.charts[k]) App.charts[k].destroy();
-
-            const isLine = ['line','radar','scatter'].includes(type);
-            const bg=[], bd=[];
-            for(let i=0;i<vals.length;i++){ 
-                const h=(i*137)%360; 
-                bg.push(`hsla(${h},70%,60%,0.6)`); 
-                bd.push(`hsla(${h},70%,60%,1)`); 
-            }
-
-            App.charts[k] = new Chart(ctx, {
-                type: type,
-                data: {
-                    labels: lbs,
-                    datasets: [{
-                        label: yk,
-                        data: type==='scatter'?lbs.map((l,i)=>({x:l,y:vals[i]})) : vals,
-                        backgroundColor: isLine ? 'rgba(59,130,246,0.2)' : bg,
-                        borderColor: isLine ? '#3b82f6' : bd,
-                        borderWidth: 1.5, fill: isLine, tension: 0.3
-                    }]
-                },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { labels: { color: '#94a3b8' } }, title: { display: true, text: `${title}: ${yk} by ${xk}`, color: '#cbd5e1' } },
-                    scales: {
-                        x: { display: !['pie','doughnut'].includes(type), ticks: {color:'#64748b'}, grid: {color:'#1e293b'} },
-                        y: { display: !['pie','doughnut'].includes(type), ticks: {color:'#64748b'}, grid: {color:'#1e293b'} }
-                    }
-                }
-            });
-        }
-
-        function downloadChart(id, name) {
-            const c = document.getElementById(id);
+        function downloadChart() {
             const a = document.createElement('a');
-            const t = document.createElement('canvas'); t.width=c.width; t.height=c.height;
-            const x = t.getContext('2d'); x.fillStyle='#0f172a'; x.fillRect(0,0,t.width,t.height); x.drawImage(c,0,0);
-            a.download = `${name}_${Date.now()}.png`; a.href=t.toDataURL(); a.click();
+            a.download = `Analysis_${new Date().toISOString().slice(0,10)}.png`;
+            a.href = App.chartInstance.toBase64Image();
+            a.click();
         }
 
-        function downloadCombined() {
-            if(!App.charts.c1 || !App.charts.c2) return;
-            const c1 = document.getElementById('c1-chart');
-            const c2 = document.getElementById('c2-chart');
-            const t = document.createElement('canvas');
-            t.width = c1.width + c2.width + 40; t.height = Math.max(c1.height, c2.height) + 40;
-            const x = t.getContext('2d'); x.fillStyle='#0f172a'; x.fillRect(0,0,t.width,t.height);
-            x.drawImage(c1, 20, 20); x.drawImage(c2, c1.width+40, 20);
-            const a = document.createElement('a'); a.download = `Compare_${Date.now()}.png`; a.href=t.toDataURL(); a.click();
-        }
+        // Prevent closing dropdown when clicking inside it
+        els.yDropdown.addEventListener('click', (e) => e.stopPropagation());
+
     </script>
 </body>
 </html>
