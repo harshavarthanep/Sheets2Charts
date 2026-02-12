@@ -13,47 +13,49 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        /* --- THEME & UTILS --- */
+        /* --- THEME --- */
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; overflow-x: hidden; }
-        
-        /* Scrollbars */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
-
-        /* Glass Panels */
+        
+        /* Glass & Layout */
         .glass-panel { background: rgba(30, 41, 59, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
         .glass-header { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); }
-
-        /* Layouts */
-        .chart-area-single { height: 50vh; min-height: 400px; }
-        .chart-area-dashboard { height: 300px; }
+        .chart-area-single { height: 50vh; min-height: 450px; }
         .chart-area-compare { height: 35vh; min-height: 250px; }
+        .chart-area-dash { height: 300px; }
         
-        /* Dropdowns & Modals */
+        /* Dropdowns */
         .dropdown-menu {
             position: fixed; background: #1e293b; border: 1px solid #475569; border-radius: 0.5rem;
             box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); z-index: 9999; animation: fadeIn 0.1s ease-out;
-            max-width: 90vw;
+            max-height: 400px; display: flex; flex-direction: column;
         }
         @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
         
-        /* Interactive Elements */
-        td[contenteditable="true"]:focus { background: #1e293b; outline: 2px solid #3b82f6; border-radius: 4px; color: white; padding: 2px 4px; }
-        td[contenteditable="true"]:hover { background: #1e293b; cursor: text; }
-        
-        /* Loading Overlay */
-        #loading-overlay { display: none; }
-        #loading-overlay.active { display: flex; }
+        /* Interactive */
+        td[contenteditable="true"]:focus { background: #1e293b; outline: 2px solid #3b82f6; color: white; padding: 4px; }
+        .toggle-switch { appearance: none; width: 32px; height: 18px; background: #475569; border-radius: 20px; position: relative; cursor: pointer; transition: 0.3s; }
+        .toggle-switch:checked { background: #3b82f6; }
+        .toggle-switch:checked::after { transform: translateX(14px); }
+        .toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: white; border-radius: 50%; transition: 0.3s; }
+
+        /* Annotations */
+        .chart-note { position: absolute; background: #fef08a; color: #854d0e; padding: 4px 8px; border-radius: 4px; font-size: 11px; box-shadow: 0 2px 5px rgba(0,0,0,0.2); pointer-events: auto; cursor: move; border: 1px solid #eab308; max-width: 150px; }
+        .chart-note::after { content: ''; position: absolute; bottom: -4px; left: 50%; border-width: 4px 4px 0; border-color: #fef08a transparent transparent; transform: translateX(-50%); }
+        .note-delete { display: none; position: absolute; -10px; right: -5px; background: red; color: white; border-radius: 50%; width: 14px; height: 14px; font-size: 9px; align-items: center; justify-content: center; cursor: pointer; }
+        .chart-note:hover .note-delete { display: flex; }
+
+        #loading-overlay { display: none; } #loading-overlay.active { display: flex; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
     <header class="glass-header border-b border-slate-700 h-16 flex items-center justify-between px-6 sticky top-0 z-[100] shadow-lg shrink-0">
         <div class="flex items-center gap-3">
-            <div class="bg-gradient-to-br from-blue-600 to-indigo-600 text-white w-9 h-9 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20 ring-1 ring-white/10">
-                <i class="fa-solid fa-chart-line"></i>
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-600 text-white w-9 h-9 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
+                <i class="fa-solid fa-chart-simple"></i>
             </div>
             <h1 class="text-xl font-bold tracking-tight text-white hidden sm:block">DataViz <span class="text-blue-500">Pro</span></h1>
         </div>
@@ -61,120 +63,94 @@
         <div class="flex items-center gap-4">
             <div id="save-status" class="text-xs text-slate-500 font-mono hidden md:block opacity-0 transition-opacity"></div>
             
-            <button onclick="clearAllData()" class="text-slate-400 hover:text-red-400 text-xs flex items-center gap-2 transition mr-2 px-3 py-1.5 rounded hover:bg-slate-800" title="Clear all saved data">
-                <i class="fa-solid fa-trash"></i> <span class="hidden sm:inline">Reset</span>
+            <button onclick="clearAllData()" class="text-slate-400 hover:text-red-400 text-xs flex items-center gap-2 transition px-3 py-1.5 rounded hover:bg-slate-800">
+                <i class="fa-solid fa-trash"></i> <span class="hidden lg:inline">Reset</span>
             </button>
 
             <input type="file" id="global-file-input" multiple accept=".xlsx, .xls, .csv" class="hidden">
             
             <div class="bg-slate-800 p-1 rounded-lg border border-slate-700 flex shadow-sm">
-                <button onclick="switchMode('single')" id="nav-single" class="nav-btn px-4 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white shadow transition-all">Workspace</button>
-                <button onclick="switchMode('dashboard')" id="nav-dashboard" class="nav-btn px-4 py-1.5 text-xs font-semibold rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-all">Dashboard</button>
-                <button onclick="switchMode('compare')" id="nav-compare" class="nav-btn px-4 py-1.5 text-xs font-semibold rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-all">Compare</button>
+                <button onclick="switchMode('single')" id="btn-mode-single" class="mode-btn px-4 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white shadow transition-all">Workspace</button>
+                <button onclick="switchMode('dashboard')" id="btn-mode-dashboard" class="mode-btn px-4 py-1.5 text-xs font-semibold rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-all">Dashboard</button>
+                <button onclick="switchMode('compare')" id="btn-mode-compare" class="mode-btn px-4 py-1.5 text-xs font-semibold rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-all">Compare</button>
             </div>
         </div>
     </header>
 
     <main class="flex-grow p-4 md:p-6 w-full max-w-[1920px] mx-auto space-y-6 overflow-hidden pb-16">
 
-        <div id="view-single" class="flex flex-col gap-6 w-full h-full">
+        <div id="view-single" class="view-section flex flex-col gap-6 w-full h-full">
             
             <div class="glass-panel p-4 rounded-xl flex flex-wrap gap-6 items-end justify-between shadow-xl relative z-20">
                 <div class="flex flex-wrap gap-4 items-end flex-grow">
                     <div class="w-full md:w-64">
-                        <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider"><i class="fa-solid fa-database mr-1"></i> Active Dataset</label>
+                        <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Active Dataset</label>
                         <div class="flex gap-2">
-                            <select id="s-file" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none shadow-sm transition-colors cursor-pointer"></select>
-                            <button onclick="triggerUpload()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 rounded border border-blue-500 transition shadow-lg shadow-blue-600/20 flex-shrink-0" title="Upload New File">
-                                <i class="fa-solid fa-plus"></i>
-                            </button>
+                            <select id="s-file" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none shadow-sm cursor-pointer"></select>
+                            <button onclick="triggerUpload()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 rounded border border-blue-500 transition shadow-lg"><i class="fa-solid fa-plus"></i></button>
                         </div>
                     </div>
-                    
                     <div class="flex gap-4 w-full md:w-auto flex-grow items-end">
                          <div class="w-1/2 md:w-48">
                             <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">X-Axis</label>
-                            <select id="s-xaxis" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white outline-none focus:border-blue-500 cursor-pointer"></select>
+                            <select id="s-xaxis" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white outline-none cursor-pointer"></select>
                         </div>
-                        
                         <div class="w-1/2 md:w-auto flex-grow relative">
-                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Y-Axis & Series</label>
+                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Y-Axis (Series)</label>
                             <button id="btn-series-mgr" onclick="toggleSeriesManager(this)" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white text-left flex justify-between items-center hover:bg-slate-700 transition">
-                                <span id="series-count-label" class="truncate">Select Data...</span>
-                                <i class="fa-solid fa-layer-group text-blue-400 text-xs ml-2"></i>
+                                <span id="series-count-label" class="truncate">Select Data...</span> <i class="fa-solid fa-layer-group text-blue-400 text-xs ml-2"></i>
                             </button>
                         </div>
                     </div>
                 </div>
 
                 <div class="flex gap-3 items-end">
-                    <button onclick="pinToDashboard()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded text-xs font-bold border border-emerald-500 transition flex items-center gap-2 shadow-lg" title="Pin current chart to Dashboard">
+                    <button onclick="addToDashboard()" class="bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded text-xs font-bold border border-indigo-500 transition flex items-center gap-2 shadow-lg" title="Pin current chart to Dashboard">
                         <i class="fa-solid fa-thumbtack"></i> Pin
                     </button>
-                    <button id="btn-opts" onclick="toggleOptions(this)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded text-xs font-bold border border-slate-600 transition flex items-center gap-2">
+                    <button id="btn-chart-opts" onclick="toggleChartOptions(this)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded text-xs font-bold border border-slate-600 transition flex items-center gap-2">
                         <i class="fa-solid fa-sliders"></i> Options
                     </button>
-                    <button onclick="downloadChart('s-chart', 'Analysis')" class="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded text-xs font-bold uppercase border border-slate-600 transition flex items-center gap-2 shadow-lg">
+                    <button onclick="downloadChart('s-chart', 'Analysis', true)" class="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded text-xs font-bold uppercase border border-slate-600 transition flex items-center gap-2 shadow-lg">
                         <i class="fa-solid fa-download"></i> PNG
                     </button>
                 </div>
             </div>
 
-            <div class="glass-panel rounded-xl p-4 shadow-xl chart-area-single relative group">
+            <div class="glass-panel rounded-xl p-4 shadow-xl chart-area-single relative group" id="s-chart-container">
                 <canvas id="s-chart"></canvas>
-                <div id="chart-hint" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none hidden">
-                    Select Data to Visualize
-                </div>
+                <div id="chart-hint" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none hidden">Select X-Axis and Data Series</div>
+                <div id="annotation-layer" class="absolute inset-0 pointer-events-none overflow-hidden"></div>
+                <div id="annotate-msg" class="absolute top-4 left-1/2 transform -translate-x-1/2 bg-yellow-500/90 text-black px-3 py-1 rounded text-xs font-bold hidden shadow-lg animate-bounce">Click chart to add note</div>
             </div>
 
             <div class="glass-panel rounded-xl overflow-hidden border-t-4 border-blue-600 shadow-xl flex flex-col">
-                <div class="bg-slate-900/80 p-3 border-b border-slate-700 flex items-center gap-3">
-                    <div class="bg-blue-500/10 text-blue-400 p-2 rounded-lg"><i class="fa-solid fa-robot"></i></div>
-                    <p id="smart-summary" class="text-sm text-slate-300 italic">Upload data to see insights...</p>
-                </div>
-
+                <div id="stats-bar" class="bg-slate-900 border-b border-slate-800 p-2 flex gap-4 overflow-x-auto text-xs text-slate-400 hidden"></div>
                 <div class="bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
-                    <div class="flex items-center gap-3">
-                        <h3 class="font-bold text-sm text-slate-200"><i class="fa-solid fa-table text-blue-500 mr-2"></i>Data Editor</h3>
-                        <span class="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/20 font-medium">Editable</span>
-                    </div>
-                    <div class="flex items-center gap-3">
-                         <span id="s-row-count" class="text-xs text-slate-500 font-mono bg-slate-900 px-2 py-1 rounded">0 rows</span>
-                    </div>
+                    <div class="flex items-center gap-3"><h3 class="font-bold text-sm text-slate-200"><i class="fa-solid fa-table text-blue-500 mr-2"></i>Data Editor</h3> <span class="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/20">Editable</span></div>
+                    <div class="flex items-center gap-3"><button onclick="downloadCSV()" class="text-xs text-blue-400 hover:text-blue-300 underline"><i class="fa-solid fa-file-csv mr-1"></i>Export CSV</button><span id="s-row-count" class="text-xs text-slate-500 font-mono bg-slate-900 px-2 py-1 rounded">0 rows</span></div>
                 </div>
-                
-                <div class="overflow-x-auto bg-slate-900/50">
-                    <div class="table-scroll-body">
-                        <table class="w-full text-left text-sm text-slate-400 border-collapse">
-                            <thead class="bg-slate-900 text-xs uppercase sticky top-0 z-10 text-slate-300 shadow-md"><tr id="s-table-head"></tr></thead>
-                            <tbody id="s-table-body" class="divide-y divide-slate-800"></tbody>
-                        </table>
-                    </div>
-                </div>
+                <div class="overflow-x-auto bg-slate-900/50"><div class="table-scroll-body"><table class="w-full text-left text-sm text-slate-400 border-collapse"><thead class="bg-slate-900 text-xs uppercase sticky top-0 z-10 text-slate-300 shadow-md"><tr id="s-table-head"></tr></thead><tbody id="s-table-body" class="divide-y divide-slate-800"></tbody></table></div></div>
             </div>
         </div>
 
-        <div id="view-dashboard" class="hidden flex-col gap-6 w-full h-full">
-            <div class="flex justify-between items-center">
-                <h2 class="text-2xl font-bold text-white">Executive Dashboard</h2>
-                <button onclick="clearDashboard()" class="text-xs text-red-400 hover:text-red-300"><i class="fa-solid fa-trash mr-1"></i> Clear All Tiles</button>
+        <div id="view-dashboard" class="view-section hidden flex-col gap-6 w-full h-full">
+            <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
+                <span class="text-sm font-bold text-slate-200 ml-2">Executive Dashboard</span>
+                <button onclick="clearDashboard()" class="text-xs text-red-400 hover:text-red-300"><i class="fa-solid fa-broom mr-1"></i>Clear Board</button>
             </div>
             <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-                <div class="col-span-full text-center py-20 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl">
-                    <i class="fa-solid fa-thumbtack text-4xl mb-4 opacity-50"></i>
-                    <p>Pin charts from the Workspace to see them here.</p>
                 </div>
+            <div id="dashboard-empty" class="text-center py-20 text-slate-500 hidden">
+                <i class="fa-solid fa-thumbtack text-4xl mb-4 opacity-50"></i>
+                <p>No charts pinned yet. Go to Workspace and click "Pin".</p>
             </div>
         </div>
 
-        <div id="view-compare" class="hidden flex-col gap-6 w-full h-full">
+        <div id="view-compare" class="view-section hidden flex-col gap-6 w-full h-full">
             <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg shrink-0">
-                <span class="text-sm font-bold text-slate-200 ml-2"><i class="fa-solid fa-scale-balanced mr-2 text-emerald-500"></i>Comparison Mode</span>
-                <div class="flex gap-2">
-                    <button onclick="downloadChart('c1-chart', 'Left_Chart')" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded text-xs border border-slate-600"><i class="fa-solid fa-download mr-1"></i> Left</button>
-                    <button onclick="downloadChart('c2-chart', 'Right_Chart')" class="bg-slate-700 hover:bg-slate-600 text-white px-3 py-1.5 rounded text-xs border border-slate-600"><i class="fa-solid fa-download mr-1"></i> Right</button>
-                    <button onclick="downloadCombined()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-1.5 rounded text-xs font-bold shadow-lg shadow-emerald-600/20 ml-2"><i class="fa-solid fa-camera mr-1"></i> Combined</button>
-                </div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-scale-balanced text-emerald-500 text-lg ml-2"></i><span class="text-sm font-bold text-slate-200">Comparison Mode</span></div>
+                <button onclick="downloadCombined()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded text-xs font-bold uppercase shadow-lg transition flex items-center gap-2"><i class="fa-solid fa-camera"></i> Snapshot Report</button>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 relative flex-grow">
@@ -183,9 +159,12 @@
                          <div class="flex gap-2"><select id="c1-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600 text-white outline-none"></select></div>
                          <div class="flex gap-2"><select id="c1-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select><select id="c1-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select></div>
                     </div>
-                    <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800"><canvas id="c1-chart"></canvas></div>
-                    <div class="glass-panel rounded-lg overflow-hidden border border-slate-700 h-64 flex flex-col">
-                        <div class="bg-slate-900 px-3 py-2 text-xs font-bold text-slate-400 uppercase border-b border-slate-800">Left Data (Editable)</div>
+                    <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800">
+                        <canvas id="c1-chart"></canvas>
+                        <button onclick="downloadChart('c1-chart', 'Left_Chart')" class="absolute top-2 right-2 bg-slate-700/80 p-1.5 rounded text-white hover:bg-blue-600"><i class="fa-solid fa-download"></i></button>
+                    </div>
+                    <div class="glass-panel rounded-lg overflow-hidden border border-slate-700 h-48 flex flex-col">
+                        <div class="bg-slate-900 px-3 py-2 text-xs font-bold text-slate-400 uppercase border-b border-slate-800">Data Editor (Left)</div>
                         <div class="overflow-auto flex-grow"><table class="w-full text-left text-xs text-slate-400"><thead class="bg-slate-950 sticky top-0"><tr id="c1-table-head"></tr></thead><tbody id="c1-table-body" class="divide-y divide-slate-800"></tbody></table></div>
                     </div>
                 </div>
@@ -196,541 +175,385 @@
                              <div class="flex gap-2"><select id="c2-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600 text-white outline-none"></select></div>
                              <div class="flex gap-2"><select id="c2-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select><select id="c2-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select></div>
                         </div>
-                        <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800"><canvas id="c2-chart"></canvas></div>
-                         <div class="glass-panel rounded-lg overflow-hidden border border-slate-700 h-64 flex flex-col">
-                            <div class="bg-slate-900 px-3 py-2 text-xs font-bold text-slate-400 uppercase border-b border-slate-800">Right Data (Editable)</div>
+                        <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800">
+                            <canvas id="c2-chart"></canvas>
+                            <button onclick="downloadChart('c2-chart', 'Right_Chart')" class="absolute top-2 right-2 bg-slate-700/80 p-1.5 rounded text-white hover:bg-emerald-600"><i class="fa-solid fa-download"></i></button>
+                        </div>
+                        <div class="glass-panel rounded-lg overflow-hidden border border-slate-700 h-48 flex flex-col">
+                            <div class="bg-slate-900 px-3 py-2 text-xs font-bold text-slate-400 uppercase border-b border-slate-800">Data Editor (Right)</div>
                             <div class="overflow-auto flex-grow"><table class="w-full text-left text-xs text-slate-400"><thead class="bg-slate-950 sticky top-0"><tr id="c2-table-head"></tr></thead><tbody id="c2-table-body" class="divide-y divide-slate-800"></tbody></table></div>
                         </div>
                     </div>
-                    
-                    <div id="c2-overlay" class="absolute inset-0 flex items-center justify-center z-10 hidden">
-                        <div class="bg-slate-900/90 p-6 rounded-xl border border-slate-600 text-center shadow-2xl backdrop-blur">
-                            <button onclick="triggerUpload()" class="bg-emerald-600 text-white px-6 py-2 rounded-lg font-bold shadow-lg text-xs">Upload Comparison File</button>
-                        </div>
+                    <div id="c2-overlay" class="absolute inset-0 flex items-center justify-center z-10 hidden bg-slate-900/90 rounded-xl border border-slate-600 backdrop-blur">
+                        <div class="text-center"><button onclick="triggerUpload()" class="bg-white text-slate-900 px-6 py-2 rounded-lg font-bold shadow-lg text-xs">Upload File B</button></div>
                     </div>
                 </div>
             </div>
         </div>
     </main>
 
-    <footer class="bg-slate-950 border-t border-slate-800 py-4 text-center mt-auto shrink-0 z-50">
-        <p class="text-slate-500 text-sm font-medium">
-            Made with <span class="text-red-500 animate-pulse">❤️</span> by <span class="text-slate-300 font-bold">Harsha Varthan E P</span>
-        </p>
+    <footer class="bg-slate-950 border-t border-slate-800 py-3 text-center mt-auto shrink-0 z-50">
+        <p class="text-slate-500 text-sm font-medium">Made with <span class="text-red-500 animate-pulse">❤️</span> by <span class="text-slate-300">Harsha Varthan E P</span></p>
     </footer>
 
-    <div id="welcome-modal" class="fixed inset-0 bg-slate-950/90 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
-        <div class="bg-slate-900 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-800 relative">
-            <div class="w-16 h-16 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl"><i class="fa-solid fa-database text-2xl text-white"></i></div>
-            <h2 class="text-2xl font-bold text-white mb-2">Welcome Back</h2>
+    <div id="welcome-modal" class="fixed inset-0 bg-slate-950/90 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity">
+        <div class="bg-slate-900 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-800">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl"><i class="fa-solid fa-database text-2xl text-white"></i></div>
+            <h2 class="text-2xl font-bold text-white mb-2">Welcome Back!</h2>
             <p id="welcome-text" class="text-slate-400 mb-8 text-sm">Secure, Server-Free Analytics.</p>
             <div id="restore-section" class="hidden mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                <button onclick="restoreSession()" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-lg font-bold text-sm transition">Resume Dashboard</button>
+                <button onclick="restoreSession()" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-lg font-bold text-sm mb-3 shadow-lg">Resume Session</button>
+                <button onclick="clearAllData()" class="text-xs text-slate-500 hover:text-red-400">Discard & Start New</button>
             </div>
-            <button onclick="triggerUpload()" class="w-full bg-slate-100 hover:bg-white text-slate-900 px-6 py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-upload"></i> Upload Excel / CSV</button>
+            <button onclick="triggerUpload()" class="w-full bg-slate-100 hover:bg-white text-slate-900 px-6 py-3 rounded-xl font-bold shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-upload"></i> Upload Excel / CSV</button>
         </div>
     </div>
 
     <div id="loading-overlay" class="fixed inset-0 bg-slate-950/80 z-[300] items-center justify-center flex-col gap-4 backdrop-blur-sm">
         <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div class="text-blue-400 font-mono text-sm animate-pulse">Processing...</div>
     </div>
 
     <script>
-        /** === CORE DATABASE === */
-        const DB_NAME = 'DataVizDB_V9'; const STORE_NAME = 'files';
-        const dbPromise = new Promise((resolve, reject) => {
-            const r = indexedDB.open(DB_NAME, 3);
-            r.onupgradeneeded = (e) => { if(!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME); };
-            r.onsuccess = (e) => resolve(e.target.result);
-        });
-        async function dbSave(key, val) { const db=await dbPromise; const tx=db.transaction(STORE_NAME,'readwrite'); tx.objectStore(STORE_NAME).put(val,key); return new Promise(r=>tx.oncomplete=r); }
-        async function dbGet(key) { const db=await dbPromise; return new Promise(r=>{ const req=db.transaction(STORE_NAME,'readonly').objectStore(STORE_NAME).get(key); req.onsuccess=()=>r(req.result); }); }
-        async function dbClear() { const db=await dbPromise; const tx=db.transaction(STORE_NAME,'readwrite'); tx.objectStore(STORE_NAME).clear(); return new Promise(r=>tx.oncomplete=r); }
+        /** DB LAYER */
+        const DB_NAME='DataVizDB_V9', STORE_NAME='files';
+        const dbPromise=new Promise((r,j)=>{const q=indexedDB.open(DB_NAME,2);q.onupgradeneeded=e=>{if(!e.target.result.objectStoreNames.contains(STORE_NAME))e.target.result.createObjectStore(STORE_NAME)};q.onsuccess=e=>r(e.target.result);q.onerror=e=>j(e)});
+        async function dbSave(k,v){const d=await dbPromise,t=d.transaction(STORE_NAME,'readwrite');t.objectStore(STORE_NAME).put(v,k);return new Promise(r=>t.oncomplete=r)}
+        async function dbGet(k){const d=await dbPromise;return new Promise(r=>d.transaction(STORE_NAME,'readonly').objectStore(STORE_NAME).get(k).onsuccess=e=>r(e.target.result))}
+        async function dbClear(){const d=await dbPromise,t=d.transaction(STORE_NAME,'readwrite');t.objectStore(STORE_NAME).clear();return new Promise(r=>t.oncomplete=r)}
 
-        /** === APP STATE === */
+        /** APP STATE */
         const App = {
             files: {}, activeFile: null, activeMode: 'single',
-            workspace: { xAxis: null, seriesConfig: [], options: { showValues: false, showTrendline: false, tension: 0.3 } },
-            dashboard: [], // Array of { title, file, xAxis, seriesConfig, type }
-            compare: { c1File: null, c1X: null, c1Y: null, c2File: null, c2X: null, c2Y: null },
-            annotations: {}, // { fname: [ {xIndex, datasetIndex, text} ] }
-            branding: { logo: null },
-            charts: {},
-            dirty: false
+            workspace: { xAxis: null, seriesConfig: [], options: { showValues:false, showTrendline:false, tension:0.3 }, annotations: [] },
+            compare: { c1File:null, c1X:null, c1Y:null, c2File:null, c2X:null, c2Y:null },
+            dashboard: [], // [{ title, file, xAxis, seriesConfig, type }]
+            settings: { watermark: null }, // Base64 logo
+            charts: { single:null, c1:null, c2:null, dash:{} },
+            dirty: false, isAnnotating: false
         };
 
         const els = {
-            input: document.getElementById('global-file-input'), modal: document.getElementById('welcome-modal'),
-            viewSingle: document.getElementById('view-single'), viewDash: document.getElementById('view-dashboard'), viewCompare: document.getElementById('view-compare'),
-            sFile: document.getElementById('s-file'), sX: document.getElementById('s-xaxis'),
-            summary: document.getElementById('smart-summary')
+            viewSingle: document.getElementById('view-single'), viewCompare: document.getElementById('view-compare'), viewDash: document.getElementById('view-dashboard'),
+            sFile:document.getElementById('s-file'), sX:document.getElementById('s-xaxis'), sThead:document.getElementById('s-table-head'), sTbody:document.getElementById('s-table-body'),
+            c1File:document.getElementById('c1-file'), c1X:document.getElementById('c1-xaxis'), c1Y:document.getElementById('c1-yaxis'), c1Thead:document.getElementById('c1-table-head'), c1Tbody:document.getElementById('c1-table-body'),
+            c2File:document.getElementById('c2-file'), c2X:document.getElementById('c2-xaxis'), c2Y:document.getElementById('c2-yaxis'), c2Thead:document.getElementById('c2-table-head'), c2Tbody:document.getElementById('c2-table-body'),
+            c2Wrapper:document.getElementById('c2-wrapper'), c2Overlay:document.getElementById('c2-overlay'),
+            dashGrid:document.getElementById('dashboard-grid'), dashEmpty:document.getElementById('dashboard-empty'),
+            annoLayer:document.getElementById('annotation-layer')
         };
 
-        /** === INITIALIZATION === */
-        (async function() {
-            Chart.register(ChartDataLabels);
-            const saved = await dbGet('appState');
-            if(saved && saved.files && Object.keys(saved.files).length > 0) {
-                document.getElementById('restore-section').classList.remove('hidden');
-                document.getElementById('welcome-text').innerText = `Found ${Object.keys(saved.files).length} datasets.`;
-            }
-        })();
+        (async function(){ Chart.register(ChartDataLabels); const s=await dbGet('appState'); if(s&&s.files&&Object.keys(s.files).length){document.getElementById('restore-section').classList.remove('hidden'); document.getElementById('welcome-text').innerText=`Found ${Object.keys(s.files).length} datasets.`;} })();
 
-        async function restoreSession() {
-            const saved = await dbGet('appState');
-            if(saved) {
-                App.files = saved.files; App.activeFile = saved.activeFile;
-                App.workspace = saved.workspace || App.workspace;
-                App.dashboard = saved.dashboard || [];
-                App.compare = saved.compare || App.compare;
-                App.annotations = saved.annotations || {};
-                App.branding = saved.branding || { logo: null };
-                // Rehydrate Sets
-                Object.values(App.files).forEach(f => { Object.keys(f.columnFilters).forEach(col => f.columnFilters[col] = new Set(f.columnFilters[col])); });
-                els.modal.style.display = 'none';
-                populateFileSelects();
-                switchMode(saved.activeMode || 'single', true);
+        async function restoreSession(){
+            document.getElementById('loading-overlay').classList.add('active');
+            const s=await dbGet('appState');
+            if(s){
+                App.files=s.files; App.activeFile=s.activeFile; App.workspace=s.workspace||App.workspace; App.compare=s.compare||App.compare; App.dashboard=s.dashboard||[]; App.settings=s.settings||{watermark:null};
+                Object.values(App.files).forEach(f=>{ Object.keys(f.columnFilters).forEach(c=>f.columnFilters[c]=new Set(f.columnFilters[c])) });
+                document.getElementById('welcome-modal').style.display='none';
+                populateFileSelects(); switchMode(s.activeMode||'single',true);
             }
+            document.getElementById('loading-overlay').classList.remove('active');
         }
 
-        function triggerUpload() { els.input.click(); }
-        els.input.addEventListener('change', async (e) => {
-            els.modal.style.display = 'none'; document.getElementById('loading-overlay').classList.add('active');
-            for(const f of e.target.files) {
-                const ab = await f.arrayBuffer();
-                const wb = XLSX.read(ab, { type: 'array' });
-                const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
-                if(json.length) {
-                    App.files[f.name] = { rawData: json, filteredData: json, headers: Object.keys(json[0]), columnFilters: {} };
-                    if(!App.activeFile) App.activeFile = f.name;
-                }
+        function clearAllData(){ if(confirm("Clear everything?")) { dbClear(); location.reload(); } }
+        function triggerUpload(){ document.getElementById('global-file-input').click(); }
+
+        document.getElementById('global-file-input').addEventListener('change', async(e)=>{
+            const fs=Array.from(e.target.files); if(!fs.length)return;
+            document.getElementById('loading-overlay').classList.add('active'); document.getElementById('welcome-modal').style.display='none';
+            for(const f of fs){
+                const d=new Uint8Array(await f.arrayBuffer()), wb=XLSX.read(d,{type:'array'}), j=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{defval:""});
+                if(j.length) App.files[f.name]={rawData:j, filteredData:j, headers:Object.keys(j[0]), columnFilters:{}};
+                if(!App.activeFile) App.activeFile=f.name;
             }
-            populateFileSelects();
-            if(!App.workspace.xAxis && App.activeFile) initWorkspaceDefaults(App.activeFile);
-            loadSingleView(); saveState();
-            document.getElementById('loading-overlay').classList.remove('active');
-            els.input.value = '';
+            populateFileSelects(); if(fs.length){ if(!App.workspace.xAxis) initWsDef(App.activeFile); loadView('single'); saveState(); }
+            document.getElementById('loading-overlay').classList.remove('active'); e.target.value='';
         });
 
-        function populateFileSelects() {
-            const names = Object.keys(App.files);
-            [els.sFile, document.getElementById('c1-file'), document.getElementById('c2-file')].forEach(sel => {
-                const v=sel.value; sel.innerHTML=''; names.forEach(n=>sel.add(new Option(n,n)));
-                if(names.includes(v)) sel.value=v; else if(App.activeFile && !sel.value) sel.value=App.activeFile;
-            });
-            if(App.activeFile) els.sFile.value = App.activeFile;
+        function populateFileSelects(){
+            const n=Object.keys(App.files);
+            [els.sFile,els.c1File,els.c2File].forEach(s=>{ const v=s.value; s.innerHTML=''; n.forEach(x=>s.add(new Option(x,x))); if(n.includes(v))s.value=v; else if(App.activeFile)s.value=App.activeFile; });
         }
 
-        function switchMode(mode, force) {
-            if(App.activeMode === mode && !force) return;
-            App.activeMode = mode;
-            document.querySelectorAll('.nav-btn').forEach(b => {
-                b.classList.remove('bg-blue-600','text-white'); b.classList.add('text-slate-400');
-            });
-            document.getElementById(`nav-${mode}`).classList.add('bg-blue-600','text-white');
-            document.getElementById(`nav-${mode}`).classList.remove('text-slate-400');
+        function switchMode(m,f=false){
+            if(App.activeMode===m && !f) return; App.activeMode=m;
+            document.querySelectorAll('.view-section').forEach(d=>d.classList.add('hidden')); document.querySelectorAll('.mode-btn').forEach(b=>{b.classList.remove('bg-blue-600','text-white'); b.classList.add('text-slate-400')});
+            const btn = document.getElementById(`btn-mode-${m}`); btn.classList.add('bg-blue-600','text-white'); btn.classList.remove('text-slate-400');
             
-            ['single','dashboard','compare'].forEach(m => document.getElementById(`view-${m}`).classList.add('hidden'));
-            document.getElementById(`view-${mode}`).classList.remove('hidden');
-            if(mode === 'compare') document.getElementById(`view-${mode}`).classList.add('flex');
-
-            if(mode === 'single') loadSingleView();
-            else if(mode === 'dashboard') renderDashboard();
-            else if(mode === 'compare') loadCompareView();
+            if(m==='single'){ els.viewSingle.classList.remove('hidden'); els.viewSingle.classList.add('flex'); loadView('single'); }
+            else if(m==='dashboard'){ els.viewDash.classList.remove('hidden'); els.viewDash.classList.add('flex'); loadDash(); }
+            else { els.viewCompare.classList.remove('hidden'); els.viewCompare.classList.add('flex'); loadCompare(); }
             saveState();
         }
 
-        async function saveState() {
-            const serializable = JSON.parse(JSON.stringify(App.files));
-            Object.keys(App.files).forEach(f => { Object.keys(App.files[f].columnFilters).forEach(c => serializable[f].columnFilters[c] = Array.from(App.files[f].columnFilters[c])); });
-            await dbSave('appState', { files: serializable, activeFile: App.activeFile, activeMode: App.activeMode, workspace: App.workspace, dashboard: App.dashboard, compare: App.compare, annotations: App.annotations, branding: App.branding });
+        function initWsDef(fn){ const f=App.files[fn]; if(!f)return; App.workspace.xAxis=f.headers.find(h=>h.match(/date|month|year|name/i))||f.headers[0]; const y=f.headers.find(h=>h.match(/sales|amt|val|rev/i))||f.headers[1]; if(y)App.workspace.seriesConfig=[{col:y,type:'bar',axis:'left'}]; }
+
+        function loadView(type){
+            if(type==='single'){
+                const f=App.files[App.activeFile]; if(!f)return;
+                els.sFile.value=App.activeFile; els.sX.innerHTML=''; f.headers.forEach(h=>els.sX.add(new Option(h,h))); els.sX.value=App.workspace.xAxis;
+                renderHeaders(App.activeFile, els.sThead, 'single'); renderTable(els.sTbody, f.filteredData, f.headers, document.getElementById('s-row-count'), true);
+                updateChart('single'); renderAnnotations();
+            }
         }
 
-        function clearAllData() { if(confirm("Reset Everything?")) { dbClear(); location.reload(); } }
-
-        /** === WORKSPACE LOGIC === */
-        function initWorkspaceDefaults(fname) {
-            const f = App.files[fname];
-            const x = f.headers.find(h => h.match(/date|month|year|name|cat/i)) || f.headers[0];
-            App.workspace.xAxis = x;
-            const y = f.headers.find(h => h.match(/sales|amt|val|rev|profit/i)) || f.headers[1];
-            if(y) App.workspace.seriesConfig = [{ col: y, type: 'bar', axis: 'left' }];
-        }
-
-        function loadSingleView() {
-            if(!App.activeFile) return;
-            const f = App.files[App.activeFile];
-            els.sFile.value = App.activeFile;
+        // --- DYNAMIC DROPDOWNS & HELPERS ---
+        function positionDropdown(btn, dd) {
+            document.body.appendChild(dd);
+            const rect = btn.getBoundingClientRect();
+            const wH = window.innerHeight; const wW = window.innerWidth;
+            let top = rect.bottom + 5; let left = rect.left;
             
-            els.sX.innerHTML = ''; f.headers.forEach(h => els.sX.add(new Option(h,h)));
-            if(App.workspace.xAxis && f.headers.includes(App.workspace.xAxis)) els.sX.value = App.workspace.xAxis;
+            // Flip Up if no space below
+            if(top + dd.offsetHeight > wH - 20) top = rect.top - dd.offsetHeight - 5;
+            // Shift Left if no space right
+            if(left + dd.offsetWidth > wW - 20) left = wW - dd.offsetWidth - 20;
             
-            renderHeaders(App.activeFile, document.getElementById('s-table-head'), 'single');
-            renderTable(document.getElementById('s-table-body'), f.filteredData, f.headers, document.getElementById('s-row-count'), true);
-            updateSingleChart();
+            dd.style.top = `${top}px`; dd.style.left = `${left}px`;
         }
 
-        els.sFile.onchange = (e) => { App.activeFile = e.target.value; initWorkspaceDefaults(App.activeFile); loadSingleView(); saveState(); };
-        els.sX.onchange = (e) => { App.workspace.xAxis = e.target.value; updateSingleChart(); saveState(); };
-
-        /* --- SERIES MANAGER (DYNAMIC POSITION) --- */
         window.toggleSeriesManager = (btn) => {
-            const ex = document.querySelector('.series-dropdown'); if(ex) return ex.remove();
-            const dd = document.createElement('div'); dd.className = 'dropdown-menu series-dropdown p-4 text-slate-300';
+            if(document.querySelector('.series-dropdown')) return document.querySelector('.series-dropdown').remove();
+            const dd=document.createElement('div'); dd.className='dropdown-menu series-dropdown p-4 text-slate-300';
+            const f=App.files[App.activeFile];
             
-            const f = App.files[App.activeFile];
-            let html = `<div class="flex justify-between mb-2 text-xs font-bold text-slate-500 uppercase"><span>Columns</span> <span onclick="this.closest('.series-dropdown').remove()" class="cursor-pointer hover:text-white">&times;</span></div>`;
-            html += `<div class="overflow-y-auto flex-grow space-y-2 pr-2 custom-scroll" style="max-height:300px">`;
-            
-            f.headers.forEach(h => {
-                const cfg = App.workspace.seriesConfig.find(c => c.col === h);
-                html += `
-                <div class="bg-slate-800 rounded border ${cfg?'border-blue-500':'border-slate-700'} p-2">
-                    <div class="flex justify-between items-center">
-                        <label class="flex items-center gap-2 text-sm text-white truncate w-32 cursor-pointer">
-                            <input type="checkbox" onchange="updSeries('${h}',this.checked)" ${cfg?'checked':''} class="accent-blue-500">
-                            <span class="truncate">${h}</span>
-                        </label>
-                        ${cfg ? `<select onchange="updType('${h}',this.value)" class="bg-slate-900 border border-slate-600 text-[10px] rounded px-1 outline-none"><option value="bar" ${cfg.type=='bar'?'selected':''}>Bar</option><option value="line" ${cfg.type=='line'?'selected':''}>Line</option><option value="area" ${cfg.type=='area'?'selected':''}>Area</option></select>`:''}
-                    </div>
-                </div>`;
-            });
-            html += `</div>`;
-            dd.innerHTML = html;
-            document.body.appendChild(dd);
-            adjustDropdownPos(dd, btn);
-            setTimeout(()=>document.addEventListener('click', closeMenu),0);
-        };
-        
-        function closeMenu(e) { if(!e.target.closest('.dropdown-menu') && !e.target.closest('button')) { document.querySelectorAll('.dropdown-menu').forEach(d=>d.remove()); document.removeEventListener('click',closeMenu); } }
-        function adjustDropdownPos(dd, trig) {
-            const r = trig.getBoundingClientRect();
-            dd.style.left = `${r.left}px`;
-            // Check bottom edge
-            if(r.bottom + dd.offsetHeight > window.innerHeight) dd.style.top = `${r.top - dd.offsetHeight - 5}px`;
-            else dd.style.top = `${r.bottom + 5}px`;
-        }
-
-        window.updSeries = (col, chk) => {
-            if(chk) App.workspace.seriesConfig.push({ col: col, type: 'bar', axis: 'left' });
-            else App.workspace.seriesConfig = App.workspace.seriesConfig.filter(c => c.col !== col);
-            reopenSeriesMenu(); updateSingleChart(); saveState();
-        };
-        window.updType = (col, t) => { App.workspace.seriesConfig.find(c=>c.col===col).type = t; reopenSeriesMenu(); updateSingleChart(); saveState(); };
-        function reopenSeriesMenu() { document.querySelector('.series-dropdown').remove(); toggleSeriesManager(document.getElementById('btn-series-mgr')); }
-
-        /* --- OPTIONS MENU (Watermark, Annotations) --- */
-        window.toggleOptions = (btn) => {
-            const ex = document.querySelector('.opts-dropdown'); if(ex) return ex.remove();
-            const dd = document.createElement('div'); dd.className = 'dropdown-menu opts-dropdown p-3 w-64 text-slate-300';
             dd.innerHTML = `
-                <div class="text-xs font-bold text-slate-500 uppercase mb-2">Display</div>
-                <label class="flex justify-between items-center mb-2 text-sm cursor-pointer"><span>Show Values</span> <input type="checkbox" onchange="setOpt('showValues',this.checked)" ${App.workspace.options.showValues?'checked':''} class="accent-blue-500"></label>
-                <label class="flex justify-between items-center mb-2 text-sm cursor-pointer"><span>Trendline</span> <input type="checkbox" onchange="setOpt('showTrendline',this.checked)" ${App.workspace.options.showTrendline?'checked':''} class="accent-blue-500"></label>
-                <div class="border-t border-slate-700 my-2"></div>
-                <div class="text-xs font-bold text-slate-500 uppercase mb-2">Branding</div>
-                <button onclick="document.getElementById('logo-upload').click()" class="w-full bg-slate-800 hover:bg-slate-700 text-xs py-1 rounded border border-slate-600 mb-1">${App.branding.logo ? 'Change Logo' : 'Upload Logo'}</button>
-                <input type="file" id="logo-upload" hidden accept="image/*" onchange="handleLogo(this)">
-                ${App.branding.logo ? `<button onclick="clearLogo()" class="text-[10px] text-red-400 hover:underline">Remove Logo</button>` : ''}
-            `;
-            document.body.appendChild(dd);
-            adjustDropdownPos(dd, btn);
-            setTimeout(()=>document.addEventListener('click', closeMenu),0);
-        };
-        window.setOpt = (k,v) => { App.workspace.options[k]=v; updateSingleChart(); saveState(); };
-        window.handleLogo = (inp) => {
-            const f=inp.files[0]; if(!f) return;
-            const r=new FileReader(); r.onload=(e)=>{ App.branding.logo=e.target.result; updateSingleChart(); saveState(); }; r.readAsDataURL(f);
-        };
-        window.clearLogo = () => { App.branding.logo=null; updateSingleChart(); saveState(); };
-
-        /* --- CHART RENDER & ANNOTATIONS --- */
-        function updateSingleChart() {
-            const f = App.files[App.activeFile];
-            if(!f || !App.workspace.xAxis || !App.workspace.seriesConfig.length) return;
+                <div class="flex justify-between items-center mb-2 border-b border-slate-700 pb-2">
+                    <span class="font-bold text-xs uppercase">Select Series</span>
+                    <div class="flex gap-2"><button onclick="seriesAction('all',true)" class="text-[10px] text-blue-400 hover:text-white">All</button><button onclick="seriesAction('all',false)" class="text-[10px] text-slate-500 hover:text-white">None</button></div>
+                </div>
+                <div class="overflow-y-auto flex-grow space-y-1 pr-1 custom-scroll" style="max-height:300px">
+                    ${f.headers.map(h=>{
+                        const c=App.workspace.seriesConfig.find(x=>x.col===h);
+                        return `<div class="bg-slate-800 rounded border ${c?'border-blue-500':'border-slate-700'} p-2">
+                            <div class="flex justify-between items-center">
+                                <label class="flex items-center gap-2 text-xs truncate w-32 cursor-pointer"><input type="checkbox" onchange="updateSeriesConfig('${h}',this.checked)" ${c?'checked':''} class="accent-blue-500"> ${h}</label>
+                                ${c?`<select onchange="updateSeriesType('${h}',this.value)" class="bg-slate-900 border border-slate-600 text-[10px] rounded px-1 outline-none"><option value="bar" ${c.type=='bar'?'selected':''}>Bar</option><option value="line" ${c.type=='line'?'selected':''}>Line</option><option value="area" ${c.type=='area'?'selected':''}>Area</option></select>`:''}
+                            </div>
+                        </div>`
+                    }).join('')}
+                </div>`;
             
-            // Pivot Data
-            const xCol = App.workspace.xAxis;
-            const pivot = {};
-            f.filteredData.forEach(r => {
-                const k = r[xCol] || "(Blank)";
-                if(!pivot[k]) pivot[k] = {};
-                App.workspace.seriesConfig.forEach(cfg => {
-                    let v = r[cfg.col]; if(typeof v === 'string') v = parseFloat(v.replace(/[^0-9.-]+/g,""));
-                    pivot[k][cfg.col] = (pivot[k][cfg.col]||0) + (v||0);
-                });
-            });
-            const labels = Object.keys(pivot);
-            
-            // Build Datasets
-            const datasets = App.workspace.seriesConfig.map((cfg, i) => {
-                const h = (i * 137) % 360;
-                return {
-                    label: cfg.col, data: labels.map(l => pivot[l][cfg.col]),
-                    type: cfg.type=='area'?'line':cfg.type, fill: cfg.type=='area',
-                    backgroundColor: `hsla(${h},70%,60%,0.5)`, borderColor: `hsla(${h},70%,50%,1)`, borderWidth: 2,
-                    datalabels: { display: App.workspace.options.showValues, color: 'white', align:'end', anchor:'end' }
-                };
-            });
+            positionDropdown(btn, dd);
+            setTimeout(()=>document.addEventListener('click', e=>{ if(!e.target.closest('.series-dropdown')&&!e.target.closest('#btn-series-mgr')) dd.remove(); },{once:true}),10);
+        };
 
-            // Trendline
-            if(App.workspace.options.showTrendline && datasets.length) {
-                const d = datasets[0].data; const n = d.length;
-                let sx=0, sy=0, sxy=0, sxx=0; d.forEach((y,x)=>{ sx+=x; sy+=y; sxy+=x*y; sxx+=x*x; });
-                const m = (n*sxy - sx*sy)/(n*sxx - sx*sx); const b = (sy - m*sx)/n;
-                datasets.push({ label: 'Trend', data: d.map((_,x)=>m*x+b), type:'line', borderDash:[5,5], borderColor:'white', pointRadius:0, fill:false });
-            }
+        window.seriesAction = (t, v) => {
+            const h=App.files[App.activeFile].headers;
+            if(v) h.forEach(col => { if(!App.workspace.seriesConfig.find(c=>c.col===col)) App.workspace.seriesConfig.push({col, type:'bar', axis:'left'}); });
+            else App.workspace.seriesConfig = [];
+            updateChart('single'); document.querySelector('.series-dropdown').remove(); toggleSeriesManager(document.getElementById('btn-series-mgr')); saveState();
+        };
 
-            // Summary Generation
-            generateSmartSummary(datasets[0].label, labels, datasets[0].data);
+        window.updateSeriesConfig=(c,v)=>{ if(v) App.workspace.seriesConfig.push({col:c,type:'bar',axis:'left'}); else App.workspace.seriesConfig=App.workspace.seriesConfig.filter(x=>x.col!==c); updateChart('single'); toggleSeriesManager(document.getElementById('btn-series-mgr')); saveState(); };
+        window.updateSeriesType=(c,t)=>{ App.workspace.seriesConfig.find(x=>x.col===c).type=t; updateChart('single'); saveState(); };
 
-            // Chart
-            if(App.charts.single) App.charts.single.destroy();
-            const ctx = document.getElementById('s-chart').getContext('2d');
-            App.charts.single = new Chart(ctx, {
-                type: 'bar', data: { labels, datasets },
-                options: {
-                    responsive: true, maintainAspectRatio: false,
-                    onClick: (e, els) => handleChartClick(e, els, labels),
-                    plugins: { 
-                        legend: { labels: { color: '#cbd5e1' } },
-                        tooltip: { backgroundColor: '#1e293b', titleColor: '#fff' } 
-                    },
-                    scales: { x: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }, y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } } }
-                },
-                plugins: [{
-                    id: 'custom_annotations',
-                    afterDatasetsDraw: (chart) => drawAnnotations(chart, App.activeFile, labels)
-                }]
-            });
+        // --- CHART OPTIONS & WATERMARK ---
+        window.toggleChartOptions = (btn) => {
+            if(document.querySelector('.settings-dropdown')) return document.querySelector('.settings-dropdown').remove();
+            const dd=document.createElement('div'); dd.className='dropdown-menu settings-dropdown p-3 text-slate-300 w-64';
+            dd.innerHTML=`
+                <div class="flex justify-between items-center mb-2"><span class="text-xs">Show Values</span><input type="checkbox" class="toggle-switch" onchange="toggleOpt('showValues',this.checked)" ${App.workspace.options.showValues?'checked':''}></div>
+                <div class="flex justify-between items-center mb-2"><span class="text-xs">Trendline</span><input type="checkbox" class="toggle-switch" onchange="toggleOpt('showTrendline',this.checked)" ${App.workspace.options.showTrendline?'checked':''}></div>
+                <div class="flex justify-between items-center mb-2"><span class="text-xs text-yellow-400">Annotate Mode</span><input type="checkbox" class="toggle-switch" onchange="toggleAnnotate(this.checked)" ${App.isAnnotating?'checked':''}></div>
+                <div class="border-t border-slate-700 pt-2">
+                    <span class="text-[10px] uppercase font-bold text-slate-500 block mb-1">Branding Logo</span>
+                    <input type="file" accept="image/*" class="text-xs w-full text-slate-500" onchange="uploadLogo(this)">
+                    ${App.settings.watermark ? '<button onclick="clearLogo()" class="text-xs text-red-400 mt-1">Remove Logo</button>' : ''}
+                </div>`;
+            positionDropdown(btn, dd);
+            setTimeout(()=>document.addEventListener('click', e=>{ if(!e.target.closest('.settings-dropdown')&&!e.target.closest('#btn-chart-opts')) dd.remove(); },{once:true}),10);
+        };
+        window.toggleOpt=(k,v)=>{ App.workspace.options[k]=v; updateChart('single'); saveState(); };
+        window.uploadLogo=async(i)=>{ const f=i.files[0]; if(f){ const r=new FileReader(); r.onload=e=>{ App.settings.watermark=e.target.result; saveState(); }; r.readAsDataURL(f); } };
+        window.clearLogo=()=>{ App.settings.watermark=null; saveState(); };
+
+        // --- ANNOTATIONS ---
+        window.toggleAnnotate=(v)=>{ App.isAnnotating=v; document.getElementById('s-chart-container').style.cursor=v?'crosshair':'default'; document.getElementById('annotate-msg').style.display=v?'block':'none'; };
+        document.getElementById('s-chart').addEventListener('click', (e)=>{
+            if(!App.isAnnotating) return;
+            const rect = e.target.getBoundingClientRect(); const x = e.clientX - rect.left; const y = e.clientY - rect.top;
+            const text = prompt("Enter note:");
+            if(text) { App.workspace.annotations.push({x: (x/rect.width)*100, y: (y/rect.height)*100, text}); renderAnnotations(); saveState(); }
+        });
+        function renderAnnotations(){
+            els.annoLayer.innerHTML = App.workspace.annotations.map((a,i) => 
+                `<div class="chart-note" style="left:${a.x}%; top:${a.y}%; transform:translate(-50%, -100%)">
+                    ${a.text}<div class="note-delete" onclick="deleteNote(${i})">×</div>
+                </div>`).join('');
         }
+        window.deleteNote=(i)=>{ App.workspace.annotations.splice(i,1); renderAnnotations(); saveState(); };
 
-        function generateSmartSummary(name, labels, data) {
-            if(!data.length) return;
-            const max = Math.max(...data); const min = Math.min(...data);
-            const sum = data.reduce((a,b)=>a+b,0); const avg = sum/data.length;
-            const maxIdx = data.indexOf(max);
-            els.summary.innerHTML = `Analysis for <b>${name}</b>: Highest value was <span class="text-emerald-400 font-bold">${max.toLocaleString()}</span> (in ${labels[maxIdx]}), lowest was <span class="text-red-400 font-bold">${min.toLocaleString()}</span>. Average is ${Math.round(avg).toLocaleString()}.`;
-        }
-
-        /* --- ANNOTATIONS --- */
-        function handleChartClick(e, elements, labels) {
-            if(!elements.length) return;
-            const idx = elements[0].index;
-            const text = prompt("Add a note for " + labels[idx] + ":");
-            if(text) {
-                if(!App.annotations[App.activeFile]) App.annotations[App.activeFile] = [];
-                App.annotations[App.activeFile].push({ idx, text });
-                updateSingleChart(); saveState();
-            }
-        }
-
-        function drawAnnotations(chart, fname, labels) {
-            const notes = App.annotations[fname];
-            if(!notes) return;
-            const ctx = chart.ctx;
-            notes.forEach(note => {
-                const meta = chart.getDatasetMeta(0);
-                if(!meta.data[note.idx]) return;
-                const { x, y } = meta.data[note.idx].tooltipPosition();
-                
-                ctx.save();
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 11px Inter';
-                ctx.fillStyle = 'rgba(30, 41, 59, 0.9)';
-                ctx.strokeStyle = '#3b82f6';
-                ctx.lineWidth = 1;
-                const w = ctx.measureText(note.text).width + 10;
-                
-                ctx.beginPath();
-                ctx.roundRect(x - w/2, y - 35, w, 20, 4);
-                ctx.fill(); ctx.stroke();
-                
-                ctx.fillStyle = '#fff';
-                ctx.textAlign = 'center';
-                ctx.fillText(note.text, x, y - 21);
-                
-                // Line
-                ctx.beginPath(); ctx.moveTo(x, y-15); ctx.lineTo(x, y); ctx.strokeStyle='#3b82f6'; ctx.stroke();
-                ctx.restore();
-            });
-        }
-
-        /* --- DASHBOARD --- */
-        window.pinToDashboard = () => {
+        // --- DASHBOARD LOGIC ---
+        window.addToDashboard = () => {
             App.dashboard.push({
-                file: App.activeFile, xAxis: App.workspace.xAxis, series: JSON.parse(JSON.stringify(App.workspace.seriesConfig))
+                file: App.activeFile, xAxis: App.workspace.xAxis, seriesConfig: JSON.parse(JSON.stringify(App.workspace.seriesConfig)),
+                title: `${App.workspace.xAxis} Analysis`
             });
             alert("Chart pinned to Dashboard!"); saveState();
         };
-        window.clearDashboard = () => { if(confirm("Clear Dashboard?")) { App.dashboard=[]; renderDashboard(); saveState(); } };
-        
-        function renderDashboard() {
-            const grid = document.getElementById('dashboard-grid');
-            grid.innerHTML = '';
-            if(!App.dashboard.length) { grid.innerHTML = `<div class="col-span-full text-center py-20 text-slate-500 border-2 border-dashed border-slate-700 rounded-xl"><p>Pin charts from Workspace to view here.</p></div>`; return; }
-
-            App.dashboard.forEach((tile, i) => {
-                const id = `dash-c-${i}`;
-                const div = document.createElement('div');
-                div.className = 'glass-panel rounded-xl p-4 chart-area-dashboard relative flex flex-col';
-                div.innerHTML = `<h4 class="text-xs font-bold text-slate-400 mb-2 uppercase">${tile.file}</h4><div class="flex-grow relative"><canvas id="${id}"></canvas></div>`;
-                grid.appendChild(div);
-
-                // Render Tile Chart
-                setTimeout(() => {
-                    const f = App.files[tile.file];
-                    if(!f) return;
-                    // Mini Pivot
-                    const piv={}; f.filteredData.forEach(r=>{ 
-                        const k=r[tile.xAxis]; 
-                        tile.series.forEach(s=>{ let v=r[s.col]; if(typeof v=='string') v=parseFloat(v.replace(/[^0-9.-]+/g,"")); piv[k][s.col]=(piv[k][s.col]||0)+(v||0); });
-                    });
-                    const lbs=Object.keys(piv);
-                    const dsets=tile.series.map((s,j)=>({ 
-                        label: s.col, data: lbs.map(l=>piv[l][s.col]), 
-                        backgroundColor: `hsla(${(j*50)%360},70%,60%,0.6)`, borderColor: `hsla(${(j*50)%360},70%,60%,1)`
-                    }));
-                    
-                    new Chart(document.getElementById(id), {
-                        type: 'bar', data: { labels: lbs, datasets: dsets },
-                        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: {display:false}, y: {display:false} } }
-                    });
-                }, 0);
+        function loadDash(){
+            els.dashGrid.innerHTML = '';
+            if(!App.dashboard.length) { els.dashEmpty.classList.remove('hidden'); return; }
+            els.dashEmpty.classList.add('hidden');
+            App.dashboard.forEach((item, idx) => {
+                const div = document.createElement('div'); div.className='glass-panel rounded-xl p-3 shadow-lg relative bg-slate-800';
+                div.innerHTML = `<div class="flex justify-between items-center mb-2 px-1"><h4 class="text-xs font-bold text-slate-300 truncate">${item.title}</h4><button onclick="removeDash(${idx})" class="text-slate-500 hover:text-red-400"><i class="fa-solid fa-times"></i></button></div><div class="chart-area-dash relative"><canvas id="dash-c-${idx}"></canvas></div>`;
+                els.dashGrid.appendChild(div);
+                
+                // Render Chart
+                const f = App.files[item.file]; if(!f) return;
+                const {labels, datasets} = prepareChartData(f.filteredData, item.xAxis, item.seriesConfig);
+                const ctx = document.getElementById(`dash-c-${idx}`).getContext('2d');
+                if(App.charts.dash[idx]) App.charts.dash[idx].destroy();
+                App.charts.dash[idx] = new Chart(ctx, { type:'bar', data:{labels,datasets}, options:{maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{x:{display:false}, y:{display:false}}} });
             });
         }
+        window.removeDash=(i)=>{ App.dashboard.splice(i,1); loadDash(); saveState(); };
+        window.clearDashboard=()=>{ if(confirm("Clear dashboard?")) { App.dashboard=[]; loadDash(); saveState(); } };
 
-        /* --- COMPARE MODE --- */
-        function loadCompareView() {
-            const files = Object.keys(App.files);
-            if(!files.length) return;
-            if(!App.compare.c1File) App.compare.c1File = files[0];
-            if(!App.compare.c2File) App.compare.c2File = files[1] || files[0];
-            
-            [1,2].forEach(id => {
-                const selF = document.getElementById(`c${id}-file`);
-                selF.innerHTML=''; files.forEach(f=>selF.add(new Option(f,f)));
-                selF.value = App.compare[`c${id}File`];
-                updateCompareSide(id);
+        // --- CHART ENGINE ---
+        function prepareChartData(data, xCol, config) {
+            const pivot={};
+            data.forEach(r=>{
+                const k=r[xCol]||"(Blank)"; if(!pivot[k])pivot[k]={};
+                config.forEach(c=>{ 
+                    let v=r[c.col]; if(typeof v==='string')v=parseFloat(v.replace(/[^0-9.-]+/g,""));
+                    if(isNaN(v))v=0; if(!pivot[k][c.col])pivot[k][c.col]=0; pivot[k][c.col]+=v;
+                });
             });
-            
-            // Check Overlay
-            if(files.length < 2) document.getElementById('c2-overlay').classList.remove('hidden'); 
-            else document.getElementById('c2-overlay').classList.add('hidden');
+            const labels=Object.keys(pivot);
+            const datasets=config.map((c,i)=>{
+                const h=(i*137)%360;
+                return {
+                    label:c.col, data:labels.map(l=>pivot[l][c.col]), type:c.type=='area'?'line':c.type, fill:c.type=='area',
+                    backgroundColor: `hsla(${h},70%,60%,0.6)`, borderColor: `hsla(${h},70%,50%,1)`, borderWidth:2, tension:0.3, yAxisID: c.axis=='right'?'y1':'y',
+                    datalabels: { display: App.workspace.options.showValues, color:'#fff', align:'end', anchor:'end', font:{size:10}, formatter:Math.round }
+                }
+            });
+            // Trendline
+            if(App.workspace.options.showTrendline && datasets.length){
+                const d=datasets[0].data, n=d.length; let sx=0,sy=0,sxy=0,sxx=0;
+                d.forEach((y,x)=>{sx+=x;sy+=y;sxy+=x*y;sxx+=x*x;});
+                const m=(n*sxy-sx*sy)/(n*sxx-sx*sx), b=(sy-m*sx)/n;
+                datasets.push({ label:'Trend', data:d.map((_,x)=>m*x+b), type:'line', borderDash:[5,5], borderColor:'#fff', pointRadius:0 });
+            }
+            return {labels, datasets};
         }
-        
-        [1,2].forEach(id => {
-            document.getElementById(`c${id}-file`).onchange = (e) => { App.compare[`c${id}File`] = e.target.value; updateCompareSide(id); saveState(); };
-            document.getElementById(`c${id}-xaxis`).onchange = (e) => { App.compare[`c${id}X`] = e.target.value; renderCompareChart(id); saveState(); };
-            document.getElementById(`c${id}-yaxis`).onchange = (e) => { App.compare[`c${id}Y`] = e.target.value; renderCompareChart(id); saveState(); };
+
+        function updateChart(k){
+            if(k==='single'){
+                const {labels, datasets} = prepareChartData(App.files[App.activeFile].filteredData, App.workspace.xAxis, App.workspace.seriesConfig);
+                const ctx=document.getElementById('s-chart').getContext('2d');
+                if(App.charts.single) App.charts.single.destroy();
+                App.charts.single=new Chart(ctx, { type:'bar', data:{labels,datasets}, options:{ maintainAspectRatio:false, plugins:{legend:{labels:{color:'#cbd5e1'}}}, scales:{x:{grid:{color:'#334155'}}, y:{grid:{color:'#334155'}}, y1:{display:datasets.some(d=>d.yAxisID=='y1'), position:'right', grid:{drawOnChartArea:false}}} } });
+                
+                // Stats
+                let sum=0, count=0, min=Infinity, max=-Infinity;
+                datasets.forEach(ds=>{ if(ds.label!='Trend') ds.data.forEach(v=>{sum+=v; count++; if(v<min)min=v; if(v>max)max=v;}) });
+                const sb=document.getElementById('stats-bar');
+                if(count>0){ sb.classList.remove('hidden'); sb.innerHTML=`<div class="px-2 bg-slate-800 rounded border border-slate-700">SUM: ${sum.toLocaleString()}</div><div class="px-2 bg-slate-800 rounded border border-slate-700">AVG: ${(sum/count).toFixed(1)}</div>`; } 
+                else sb.classList.add('hidden');
+            }
+        }
+
+        // --- COMPARISON LOGIC ---
+        function loadCompare(){
+            const ks=Object.keys(App.files); if(!ks.length)return;
+            if(!App.compare.c1File)App.compare.c1File=ks[0]; if(!App.compare.c2File)App.compare.c2File=ks.length>1?ks[1]:ks[0];
+            renderCompSide(1); renderCompSide(2);
+            if(ks.length<2){ els.c2Wrapper.classList.add('blur-sm','pointer-events-none'); els.c2Overlay.classList.remove('hidden'); }
+            else { els.c2Wrapper.classList.remove('blur-sm'); els.c2Overlay.classList.add('hidden'); }
+        }
+        function renderCompSide(id){
+            const fn=App.compare[`c${id}File`], f=App.files[fn]; if(!f)return;
+            els[`c${id}File`].value=fn; const xS=els[`c${id}X`], yS=els[`c${id}Y`];
+            xS.innerHTML=''; yS.innerHTML=''; f.headers.forEach(h=>{xS.add(new Option(h,h)); yS.add(new Option(h,h))});
+            xS.value = App.compare[`c${id}X`] || f.headers[0]; yS.value = App.compare[`c${id}Y`] || f.headers[1];
+            renderHeaders(fn, els[`c${id}Thead`], `c${id}`); renderTable(els[`c${id}Tbody`], f.filteredData, f.headers, null, true);
+            
+            // Chart
+            const ctx=document.getElementById(`c${id}-chart`).getContext('2d');
+            const data=f.filteredData.map(d=>parseFloat(String(d[yS.value]).replace(/[^0-9.-]+/g,""))||0);
+            if(App.charts[`c${id}`])App.charts[`c${id}`].destroy();
+            App.charts[`c${id}`]=new Chart(ctx,{type:'line',data:{labels:f.filteredData.map(d=>d[xS.value]),datasets:[{label:yS.value,data,borderColor:id==1?'#3b82f6':'#10b981',backgroundColor:id==1?'rgba(59,130,246,0.1)':'rgba(16,185,129,0.1)',fill:true,pointRadius:0}]},options:{maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{display:false},y:{grid:{color:'#334155'}}}}});
+        }
+        [1,2].forEach(id=>{
+            els[`c${id}File`].onchange=e=>{App.compare[`c${id}File`]=e.target.value; renderCompSide(id); saveState()};
+            els[`c${id}X`].onchange=e=>{App.compare[`c${id}X`]=e.target.value; renderCompSide(id); saveState()};
+            els[`c${id}Y`].onchange=e=>{App.compare[`c${id}Y`]=e.target.value; renderCompSide(id); saveState()};
         });
 
-        function updateCompareSide(id) {
-            const fname = App.compare[`c${id}File`];
-            const f = App.files[fname];
-            if(!f) return;
+        // --- SHARED UTILS (Filter, Table, Export) ---
+        function renderHeaders(fn, th, ctx){ th.innerHTML=App.files[fn].headers.map(h=>`<th class="px-4 py-3 bg-slate-900 border-b border-slate-700 whitespace-nowrap"><div class="flex justify-between items-center"><span>${h}</span><button onclick="toggleFilter('${fn}','${h}',this,'${ctx}')" class="${App.files[fn].columnFilters[h].size?'text-blue-400':'text-slate-600'} hover:text-white"><i class="fa-solid fa-filter"></i></button></div></th>`).join(''); }
+        function renderTable(tb, d, h, cnt, ed){ tb.innerHTML=d.slice(0,50).map((r,i)=>`<tr class="hover:bg-slate-800 border-b border-slate-800">${h.map(c=>`<td class="px-4 py-2 truncate max-w-[120px]" ${ed?`contenteditable="true" onblur="updCell('${App.activeFile}',${i},'${c}',this)"`:''}>${r[c]||''}</td>`).join('')}</tr>`).join(''); if(cnt)cnt.innerText=`${d.length} rows`; }
+        window.updCell=(f,i,c,e)=>{ App.files[f].filteredData[i][c]=e.innerText; App.dirty=true; clearTimeout(window._t); window._t=setTimeout(()=>loadView('single'),500); };
 
-            // Axes
-            const x = document.getElementById(`c${id}-xaxis`); const y = document.getElementById(`c${id}-yaxis`);
-            x.innerHTML=''; y.innerHTML=''; f.headers.forEach(h => { x.add(new Option(h,h)); y.add(new Option(h,h)); });
-            
-            if(!App.compare[`c${id}X`]) App.compare[`c${id}X`] = f.headers[0];
-            if(!App.compare[`c${id}Y`]) App.compare[`c${id}Y`] = f.headers[1] || f.headers[0];
-            x.value = App.compare[`c${id}X`]; y.value = App.compare[`c${id}Y`];
-
-            // Table
-            renderHeaders(fname, document.getElementById(`c${id}-table-head`), 'compare');
-            renderTable(document.getElementById(`c${id}-table-body`), f.filteredData, f.headers, null, true);
-            
-            renderCompareChart(id);
-        }
-
-        function renderCompareChart(id) {
-            const fname = App.compare[`c${id}File`]; const f = App.files[fname];
-            const x = App.compare[`c${id}X`]; const y = App.compare[`c${id}Y`];
-            const labels = f.filteredData.map(r => r[x]);
-            const data = f.filteredData.map(r => parseFloat(String(r[y]).replace(/[^0-9.-]/g,''))||0);
-            
-            if(App.charts[`c${id}`]) App.charts[`c${id}`].destroy();
-            App.charts[`c${id}`] = new Chart(document.getElementById(`c${id}-chart`), {
-                type: 'line', data: { labels, datasets: [{ label: y, data, borderColor: id==1?'#3b82f6':'#10b981', fill:true, backgroundColor: id==1?'#3b82f620':'#10b98120' }] },
-                options: { responsive: true, maintainAspectRatio: false, plugins:{legend:{display:false}}, scales:{x:{display:false}, y:{grid:{color:'#334155'}}} }
-            });
-        }
-
-        /* --- SHARED UTILS (Filter, Table, Download) --- */
-        function renderHeaders(fname, thead, ctxId) {
-            const f = App.files[fname];
-            thead.innerHTML = f.headers.map(h => {
-                const act = f.columnFilters[h] && f.columnFilters[h].size > 0;
-                return `<th class="px-4 py-3 bg-slate-900 border-b border-slate-700 whitespace-nowrap"><div class="flex justify-between items-center"><span class="text-slate-300 font-bold">${h}</span><button onclick="toggleFilter('${fname}','${h}',this,'${ctxId}')" class="${act?'text-blue-400':'text-slate-600'} hover:text-white"><i class="fa-solid fa-filter"></i></button></div></th>`;
-            }).join('');
-        }
-
-        function renderTable(tbody, data, headers, countEl, editable) {
-            const rows = data.slice(0, 50);
-            tbody.innerHTML = rows.map((r, i) => `<tr class="border-b border-slate-800 hover:bg-slate-800 transition">${headers.map(h => `<td class="px-4 py-2 truncate max-w-[120px]" ${editable?`contenteditable="true" onblur="updCell('${App.activeFile}',${i},'${h}',this)"`:''}>${r[h]}</td>`).join('')}</tr>`).join('');
-            if(countEl) countEl.innerText = `${data.length} rows (Showing 50)`;
-        }
-
-        window.updCell = (f,i,c,el) => { App.files[f].filteredData[i][c] = el.innerText; App.dirty = true; clearTimeout(window._t); window._t=setTimeout(updateSingleChart,500); };
-
-        /* --- FILTERS (New Check All/Uncheck All) --- */
-        window.toggleFilter = (fname, col, btn, ctxId) => {
-            const ex=document.querySelector('.filter-dropdown'); if(ex) ex.remove();
-            const f=App.files[fname]; const vals=[...new Set(f.rawData.map(r=>r[col]))].sort().slice(0,100);
-            const active=f.columnFilters[col];
-            
-            const dd=document.createElement('div'); dd.className='dropdown-menu filter-dropdown w-60 p-3 text-slate-300';
-            dd.innerHTML = `
-                <input type="text" placeholder="Search..." class="w-full bg-slate-800 p-1 mb-2 rounded text-xs outline-none" onkeyup="this.nextElementSibling.querySelectorAll('label').forEach(l=>l.style.display=l.innerText.toLowerCase().includes(this.value.toLowerCase())?'flex':'none')">
-                <div class="flex gap-2 mb-2 text-[10px] text-blue-400">
-                    <button onclick="checkAll(this,true)">Check All</button> <button onclick="checkAll(this,false)">Uncheck All</button>
-                </div>
-                <div class="max-h-48 overflow-y-auto space-y-1 mb-2 custom-scroll">
-                    ${vals.map(v=>`<label class="flex gap-2 text-xs hover:bg-slate-700 p-1 rounded cursor-pointer"><input type="checkbox" value="${v}" ${!active||active.has(String(v))?'checked':''}> ${v}</label>`).join('')}
-                </div>
-                <div class="flex justify-between"><button onclick="applyF('${fname}','${col}',this,'${ctxId}')" class="text-xs font-bold text-blue-500">Apply</button><button onclick="clearF('${fname}','${col}','${ctxId}')" class="text-xs text-slate-500">Clear</button></div>
-            `;
-            document.body.appendChild(dd);
-            adjustDropdownPos(dd, btn);
-            setTimeout(()=>document.addEventListener('click', closeMenu),0);
+        window.toggleFilter=(fn,col,btn,ctx)=>{
+            if(document.querySelector('.filter-dropdown')) return document.querySelector('.filter-dropdown').remove();
+            const vals=[...new Set(App.files[fn].rawData.map(r=>r[col]))].sort().slice(0,100);
+            const active=App.files[fn].columnFilters[col];
+            const dd=document.createElement('div'); dd.className='dropdown-menu filter-dropdown p-2 w-56 text-slate-300';
+            dd.innerHTML=`<input type="text" placeholder="Search" class="bg-slate-800 text-xs p-1 w-full rounded mb-2" onkeyup="this.nextElementSibling.querySelectorAll('label').forEach(l=>l.style.display=l.innerText.toLowerCase().includes(this.value.toLowerCase())?'flex':'none')">
+            <div class="max-h-40 overflow-auto space-y-1 mb-2">${vals.map(v=>`<label class="flex gap-2 text-xs cursor-pointer hover:bg-slate-700 p-1 rounded"><input type="checkbox" value="${v}" ${!active||active.has(String(v))?'checked':''} class="accent-blue-500"> ${v}</label>`).join('')}</div>
+            <div class="flex justify-between border-t border-slate-700 pt-2"><button onclick="applyF('${fn}','${col}',this,'${ctx}')" class="text-xs text-blue-400 font-bold">Apply</button><div class="flex gap-2"><button onclick="checkAll(this,true)" class="text-[10px] text-slate-400">All</button><button onclick="checkAll(this,false)" class="text-[10px] text-slate-400">None</button></div></div>`;
+            positionDropdown(btn, dd);
+            setTimeout(()=>document.addEventListener('click', e=>{if(!e.target.closest('.filter-dropdown')&&!e.target.closest('th button'))dd.remove()},{once:true}),10);
         };
-        window.checkAll = (btn, chk) => { btn.closest('.filter-dropdown').querySelectorAll('input[type=checkbox]').forEach(c=>c.checked=chk); };
-        window.applyF = (f,c,btn,ctx) => {
-            const set = new Set(Array.from(btn.closest('.filter-dropdown').querySelectorAll('input:checked')).map(i=>i.value));
-            App.files[f].columnFilters[c] = set;
-            App.files[f].filteredData = App.files[f].rawData.filter(r => Object.entries(App.files[f].columnFilters).every(([k,s])=>s.has(String(r[k]))));
-            ctx=='single'?loadSingleView():loadCompareView(); saveState();
-        };
-        window.clearF = (f,c,ctx) => { delete App.files[f].columnFilters[c]; App.files[f].filteredData = App.files[f].rawData; ctx=='single'?loadSingleView():loadCompareView(); saveState(); };
+        window.checkAll=(b,v)=>{b.closest('.filter-dropdown').querySelectorAll('input[type="checkbox"]').forEach(c=>c.checked=v)};
+        window.applyF=(fn,col,b,ctx)=>{ const s=new Set(Array.from(b.closest('.filter-dropdown').querySelectorAll('input:checked')).map(c=>c.value)); App.files[fn].columnFilters[col]=s; recalc(fn); if(ctx=='single')loadView('single'); else loadCompare(); document.querySelector('.filter-dropdown').remove(); };
+        function recalc(fn){const f=App.files[fn]; f.filteredData=f.rawData.filter(r=>Object.entries(f.columnFilters).every(([c,s])=>s.has(String(r[c])))); saveState();}
 
-        /* --- DOWNLOAD & WATERMARK --- */
-        async function downloadChart(id, name) {
-            const c = document.getElementById(id);
-            const t = document.createElement('canvas'); t.width=c.width; t.height=c.height;
-            const x = t.getContext('2d'); x.fillStyle='#0f172a'; x.fillRect(0,0,t.width,t.height); x.drawImage(c,0,0);
+        // --- DOWNLOAD & WATERMARK RENDERER ---
+        async function downloadChart(id, name, withNotes=false){
+            const c=document.getElementById(id); 
+            const t=document.createElement('canvas'); t.width=c.width; t.height=c.height; const ctx=t.getContext('2d');
+            ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,t.width,t.height); ctx.drawImage(c,0,0);
             
-            // Draw Watermark
-            if(App.branding.logo) {
-                const img = new Image(); img.src = App.branding.logo;
-                await new Promise(r => img.onload = r);
-                const ar = img.width / img.height;
-                const w = 100; const h = 100/ar;
-                x.globalAlpha = 0.5;
-                x.drawImage(img, t.width - w - 20, t.height - h - 20, w, h);
+            // Draw Notes
+            if(withNotes && App.workspace.annotations.length) {
+                ctx.font = '12px Inter'; ctx.textBaseline='bottom'; ctx.textAlign='center';
+                App.workspace.annotations.forEach(a => {
+                    const x = (a.x/100)*t.width; const y = (a.y/100)*t.height;
+                    const w = ctx.measureText(a.text).width + 10;
+                    ctx.fillStyle='#fef08a'; ctx.fillRect(x-(w/2), y-20, w, 20);
+                    ctx.fillStyle='#854d0e'; ctx.fillText(a.text, x, y-5);
+                    ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x-4, y-4); ctx.lineTo(x+4, y-4); ctx.fill();
+                });
             }
 
-            const a = document.createElement('a'); a.download=`${name}_${Date.now()}.png`; a.href=t.toDataURL(); a.click();
+            // Draw Watermark
+            if(App.settings.watermark) {
+                const img = new Image(); img.src = App.settings.watermark;
+                await img.decode();
+                const asp = img.width/img.height; const h=40; const w=h*asp;
+                ctx.globalAlpha = 0.5; ctx.drawImage(img, t.width - w - 20, t.height - h - 20, w, h);
+            }
+
+            const a=document.createElement('a'); a.download=`${name}_${Date.now()}.png`; a.href=t.toDataURL(); a.click();
         }
 
-        function downloadCombined() {
+        window.downloadCombined = async () => {
             const c1=document.getElementById('c1-chart'), c2=document.getElementById('c2-chart');
             const t=document.createElement('canvas'); t.width=c1.width+c2.width+40; t.height=Math.max(c1.height,c2.height)+40;
-            const x=t.getContext('2d'); x.fillStyle='#0f172a'; x.fillRect(0,0,t.width,t.height);
-            x.drawImage(c1,20,20); x.drawImage(c2,c1.width+40,20);
+            const ctx=t.getContext('2d'); ctx.fillStyle='#0f172a'; ctx.fillRect(0,0,t.width,t.height);
+            ctx.drawImage(c1,20,20); ctx.drawImage(c2,c1.width+40,20);
+            
+            if(App.settings.watermark) {
+                const img = new Image(); img.src = App.settings.watermark; await img.decode();
+                const asp = img.width/img.height; const h=50; const w=h*asp;
+                ctx.globalAlpha = 0.5; ctx.drawImage(img, t.width - w - 20, t.height - h - 20, w, h);
+            }
             const a=document.createElement('a'); a.download=`CombinedReport.png`; a.href=t.toDataURL(); a.click();
         }
+        
+        window.downloadCSV=()=>{ const wb=XLSX.utils.book_new(), ws=XLSX.utils.json_to_sheet(App.files[App.activeFile].filteredData); XLSX.utils.book_append_sheet(wb,ws,"Data"); XLSX.writeFile(wb,"DataExport.xlsx"); };
+        
+        // --- LISTENERS ---
+        els.sFile.onchange=e=>{App.activeFile=e.target.value; initWsDef(App.activeFile); loadView('single'); saveState()};
+        els.sX.onchange=e=>{App.workspace.xAxis=e.target.value; updateChart('single'); saveState()};
     </script>
 </body>
 </html>
