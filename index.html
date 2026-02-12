@@ -3,12 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataViz Pro V7 | Enterprise Edition</title>
+    <title>DataViz Pro V7 | Enterprise Analytics</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/2.2.1/chartjs-plugin-annotation.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
@@ -16,184 +15,112 @@
         body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; }
         
         /* Custom Scrollbar */
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
         ::-webkit-scrollbar-track { background: #1e293b; }
         ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
         ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-        /* Glassmorphism & UI Components */
-        .glass-panel {
-            background: rgba(30, 41, 59, 0.7);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .chart-area-single { height: 60vh; min-height: 500px; }
+        /* Glassmorphism & UI Utils */
+        .glass-panel { background: rgba(30, 41, 59, 0.7); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .chart-area-single { height: 55vh; min-height: 450px; }
         .chart-area-compare { height: 40vh; min-height: 300px; }
         .table-scroll-body { max-height: 400px; overflow-y: auto; }
+        
+        /* Dropdowns */
+        .filter-dropdown, .series-dropdown {
+            position: fixed; background: #1e293b; border: 1px solid #475569; border-radius: 0.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); z-index: 9999; animation: fadeIn 0.1s ease-out;
+        }
+        .series-dropdown { width: 320px; max-height: 400px; display: flex; flex-direction: column; }
+        
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+        
+        /* Editable Cells */
+        td[contenteditable="true"]:focus { background: #1e293b; outline: 2px solid #3b82f6; border-radius: 4px; color: white; }
+        td[contenteditable="true"]:hover { background: #1e293b; cursor: text; }
 
-        /* Multi-Select Dropdown */
-        .multi-select-container { position: relative; }
-        .multi-select-trigger { cursor: pointer; user-select: none; }
-        .multi-select-dropdown {
-            position: absolute; top: 100%; left: 0; right: 0;
-            background: #1e293b; border: 1px solid #475569;
-            border-radius: 0.5rem; z-index: 50; max-height: 250px;
-            overflow-y: auto; display: none; margin-top: 4px;
-            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
-        }
-        .multi-select-dropdown.show { display: block; }
-        .multi-select-option {
-            padding: 8px 12px; cursor: pointer; display: flex; align-items: center; gap: 8px;
-            font-size: 0.875rem; color: #cbd5e1;
-        }
-        .multi-select-option:hover { background: #334155; }
-        .multi-select-option input { accent-color: #3b82f6; cursor: pointer; }
-
-        /* Advanced Settings Panel */
-        .settings-panel {
-            background: #1e293b; border-left: 1px solid #334155;
-            width: 300px; position: absolute; right: 0; top: 0; bottom: 0;
-            transform: translateX(100%); transition: transform 0.3s ease;
-            z-index: 40; box-shadow: -5px 0 15px rgba(0,0,0,0.3);
-            display: flex; flex-direction: column;
-        }
-        .settings-panel.open { transform: translateX(0); }
-
-        /* Editable Table Cells */
-        td[contenteditable="true"]:focus {
-            outline: 2px solid #3b82f6; background: #1e293b; color: white;
-            border-radius: 4px; padding: 4px;
-        }
+        /* Toggles */
+        .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
+        .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
     </style>
 </head>
-<body class="min-h-screen flex flex-col overflow-x-hidden">
+<body class="min-h-screen flex flex-col">
 
     <header class="bg-slate-900 border-b border-slate-700 h-16 flex items-center justify-between px-6 sticky top-0 z-[100] shadow-lg shrink-0">
         <div class="flex items-center gap-3">
-            <div class="bg-blue-600 text-white w-9 h-9 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
-                <i class="fa-solid fa-layer-group"></i>
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-600 text-white w-9 h-9 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20">
+                <i class="fa-solid fa-chart-line"></i>
             </div>
-            <h1 class="text-xl font-bold tracking-tight text-white hidden sm:block">DataViz <span class="text-blue-500">Pro V7</span></h1>
+            <h1 class="text-xl font-bold tracking-tight text-white hidden sm:block">DataViz <span class="text-blue-500">Pro</span></h1>
         </div>
 
         <div class="flex items-center gap-4">
             <div id="save-status" class="text-xs text-slate-500 font-mono hidden md:block"></div>
-            
-            <button onclick="clearAllData()" class="text-slate-400 hover:text-red-400 text-xs flex items-center gap-1 transition mr-2" title="Reset App">
-                <i class="fa-solid fa-trash"></i> <span class="hidden sm:inline">Reset</span>
+            <button onclick="clearAllData()" class="text-slate-400 hover:text-red-400 text-xs flex items-center gap-1 transition mr-2" title="Clear all saved data">
+                <i class="fa-solid fa-trash"></i> <span class="hidden sm:inline">Clear Data</span>
             </button>
-
             <input type="file" id="global-file-input" multiple accept=".xlsx, .xls, .csv" class="hidden">
-            
             <div class="bg-slate-800 p-1 rounded-lg border border-slate-700 flex shadow-sm">
-                <button id="btn-mode-single" class="px-4 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white shadow transition-all">Studio</button>
+                <button id="btn-mode-single" class="px-4 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white shadow transition-all">Workspace</button>
                 <button id="btn-mode-compare" class="px-4 py-1.5 text-xs font-semibold rounded text-slate-400 hover:text-white transition-all">Compare</button>
             </div>
         </div>
     </header>
 
-    <main class="flex-grow p-4 md:p-6 w-full max-w-[1920px] mx-auto space-y-6 overflow-hidden relative pb-16">
+    <main class="flex-grow p-4 md:p-6 w-full max-w-[1920px] mx-auto space-y-6 overflow-x-hidden pb-16">
 
-        <div id="view-single" class="flex flex-col gap-6 w-full relative h-full">
+        <div id="view-single" class="flex flex-col gap-6 w-full">
             
-            <div class="glass-panel p-4 rounded-xl flex flex-wrap gap-4 items-end justify-between shadow-xl z-20">
+            <div class="glass-panel p-5 rounded-xl flex flex-wrap gap-6 items-end justify-between shadow-xl">
                 <div class="flex flex-wrap gap-4 items-end flex-grow">
-                    <div class="w-full md:w-56">
+                    <div class="w-full md:w-64">
                         <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Active Dataset</label>
                         <div class="flex gap-2">
                             <select id="s-file" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none shadow-sm"></select>
-                            <button onclick="triggerUpload()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 rounded border border-blue-500 transition shadow-lg" title="Import Data">
+                            <button onclick="triggerUpload()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 rounded border border-blue-500 transition shadow-lg shadow-blue-600/20" title="Upload New File">
                                 <i class="fa-solid fa-plus"></i>
                             </button>
                         </div>
                     </div>
                     
-                    <div class="flex gap-4 flex-grow">
-                        <div class="w-1/2 md:w-48">
+                    <div class="flex gap-4 w-full md:w-auto flex-grow items-end">
+                         <div class="w-1/2 md:w-48">
                             <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">X-Axis (Category)</label>
                             <select id="s-xaxis" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white outline-none focus:border-blue-500"></select>
                         </div>
                         
-                        <div class="w-1/2 md:w-64 relative multi-select-container">
-                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Y-Axis (Series)</label>
-                            <div class="multi-select-trigger w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white flex justify-between items-center" onclick="toggleMultiSelect()">
-                                <span id="s-yaxis-label" class="truncate text-slate-300">Select Columns...</span>
-                                <i class="fa-solid fa-chevron-down text-xs text-slate-500"></i>
-                            </div>
-                            <div id="s-yaxis-dropdown" class="multi-select-dropdown">
-                                </div>
+                        <div class="w-1/2 md:w-auto flex-grow relative">
+                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Y-Axis (Values & Series)</label>
+                            <button id="btn-series-mgr" onclick="toggleSeriesManager(this)" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white text-left flex justify-between items-center hover:bg-slate-700 transition">
+                                <span id="series-count-label">Select Data Series...</span>
+                                <i class="fa-solid fa-layer-group text-blue-400 text-xs"></i>
+                            </button>
                         </div>
-                    </div>
-
-                    <div class="w-full md:w-40">
-                         <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Base Type</label>
-                         <select id="s-type" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white outline-none">
-                            <option value="bar">Bar Chart</option>
-                            <option value="line">Line Chart</option>
-                            <option value="scatter">Scatter Plot</option>
-                            <option value="radar">Radar Chart</option>
-                            <option value="pie">Pie Chart</option>
-                            <option value="doughnut">Doughnut</option>
-                         </select>
                     </div>
                 </div>
 
-                <div class="flex gap-2">
-                    <button onclick="toggleSettings()" class="bg-slate-700 hover:bg-slate-600 text-white px-4 py-2 rounded text-xs font-bold uppercase border border-slate-600 transition flex items-center gap-2">
-                        <i class="fa-solid fa-sliders"></i> Customize
-                    </button>
-                    <button onclick="downloadChart('s-chart', 'Analysis')" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded text-xs font-bold uppercase border border-emerald-500 transition flex items-center gap-2 shadow-lg">
+                <div class="flex gap-3">
+                    <button onclick="downloadChart('s-chart', 'Analysis')" class="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded text-xs font-bold uppercase border border-slate-600 transition flex items-center gap-2 shadow-lg">
                         <i class="fa-solid fa-download"></i> PNG
                     </button>
                 </div>
             </div>
 
-            <div class="glass-panel rounded-xl p-4 shadow-xl chart-area-single relative flex-grow overflow-hidden">
+            <div class="glass-panel rounded-xl p-4 shadow-xl chart-area-single relative">
                 <canvas id="s-chart"></canvas>
-                
-                <div id="settings-panel" class="settings-panel rounded-r-xl">
-                    <div class="p-4 border-b border-slate-700 flex justify-between items-center bg-slate-800">
-                        <h3 class="font-bold text-sm text-white">Advanced Options</h3>
-                        <button onclick="toggleSettings()" class="text-slate-400 hover:text-white"><i class="fa-solid fa-times"></i></button>
-                    </div>
-                    <div class="p-4 overflow-y-auto flex-grow space-y-4">
-                        
-                        <div id="series-config-container" class="space-y-3">
-                            </div>
-
-                        <div class="border-t border-slate-700 pt-4 mt-4 space-y-4">
-                             <div>
-                                <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                                    <input type="checkbox" id="opt-trendline" class="accent-blue-600" onchange="updateSingleChart()"> Show Trendline (Linear)
-                                </label>
-                            </div>
-                            <div>
-                                <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                                    <input type="checkbox" id="opt-datalabels" class="accent-blue-600" onchange="updateSingleChart()"> Show Data Labels
-                                </label>
-                            </div>
-                            <div>
-                                <label class="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-                                    <input type="checkbox" id="opt-stacked" class="accent-blue-600" onchange="updateSingleChart()"> Stacked Bars
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
-            <div class="glass-panel rounded-xl overflow-hidden border-t-4 border-blue-600 shadow-xl flex flex-col h-64 shrink-0">
-                <div class="bg-slate-800 p-3 px-4 border-b border-slate-700 flex justify-between items-center shrink-0">
-                    <h3 class="font-bold text-sm text-slate-200"><i class="fa-solid fa-table text-blue-500 mr-2"></i>Data Source (Editable)</h3>
+            <div class="glass-panel rounded-xl overflow-hidden border-t-4 border-blue-600 shadow-xl flex flex-col">
+                <div class="bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
                     <div class="flex items-center gap-3">
-                        <span id="s-row-count" class="text-xs text-slate-500 font-mono bg-slate-900 px-2 py-1 rounded">0 rows</span>
-                        <button onclick="saveTableEdits()" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-500 transition hidden" id="save-edits-btn">Save Changes</button>
+                        <h3 class="font-bold text-sm text-slate-200"><i class="fa-solid fa-table text-blue-500 mr-2"></i>Data Editor</h3>
+                        <span class="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/20">Edits update chart instantly</span>
                     </div>
+                    <span id="s-row-count" class="text-xs text-slate-500 font-mono bg-slate-900 px-2 py-1 rounded">0 rows</span>
                 </div>
-                <div class="overflow-x-auto bg-slate-900/50 flex-grow">
-                    <div class="table-scroll-body h-full">
-                        <table class="w-full text-left text-sm text-slate-400 border-collapse relative">
+                <div class="overflow-x-auto bg-slate-900/50">
+                    <div class="table-scroll-body">
+                        <table class="w-full text-left text-sm text-slate-400 border-collapse">
                             <thead class="bg-slate-900 text-xs uppercase sticky top-0 z-20 text-slate-300 shadow-md">
                                 <tr id="s-table-head"></tr>
                             </thead>
@@ -204,50 +131,33 @@
             </div>
         </div>
 
-        <div id="view-compare" class="hidden flex-col gap-6 w-full h-full">
+        <div id="view-compare" class="hidden flex-col gap-6 w-full">
             <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg">
                 <span class="text-sm font-bold text-slate-200 ml-2">Comparison Mode</span>
                 <button onclick="downloadCombined()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded text-xs font-bold uppercase shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
-                    <i class="fa-solid fa-camera"></i> Snapshot
+                    <i class="fa-solid fa-camera"></i> Combined Report
                 </button>
             </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 relative">
                 <div class="flex flex-col gap-4">
                     <div class="glass-panel p-3 rounded-lg border-l-4 border-blue-500 shadow-lg flex flex-col gap-2">
-                         <div class="flex gap-2">
-                            <select id="c1-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600 text-white outline-none"></select>
-                            <select id="c1-type" class="bg-slate-800 text-xs w-24 p-2 rounded border border-slate-600 text-white outline-none"><option value="bar">Bar</option><option value="line">Line</option><option value="pie">Pie</option></select>
-                        </div>
-                        <div class="flex gap-2">
-                            <select id="c1-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
-                            <select id="c1-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
-                        </div>
+                        <div class="flex gap-2"><select id="c1-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600 text-white outline-none"></select></div>
+                        <div class="flex gap-2"><select id="c1-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select><select id="c1-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select></div>
                     </div>
-                    <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800 flex-grow">
-                        <canvas id="c1-chart"></canvas>
-                    </div>
+                    <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800"><canvas id="c1-chart"></canvas></div>
                 </div>
-
                 <div class="relative flex flex-col gap-4">
-                    <div id="c2-wrapper" class="flex flex-col gap-4 transition-all duration-300 h-full">
+                    <div id="c2-wrapper" class="flex flex-col gap-4 transition-all duration-300">
                         <div class="glass-panel p-3 rounded-lg border-l-4 border-emerald-500 shadow-lg flex flex-col gap-2">
-                             <div class="flex gap-2">
-                                <select id="c2-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600 text-white outline-none"></select>
-                                <select id="c2-type" class="bg-slate-800 text-xs w-24 p-2 rounded border border-slate-600 text-white outline-none"><option value="bar">Bar</option><option value="line">Line</option><option value="pie">Pie</option></select>
-                            </div>
-                            <div class="flex gap-2">
-                                <select id="c2-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
-                                <select id="c2-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
-                            </div>
+                             <div class="flex gap-2"><select id="c2-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600 text-white outline-none"></select></div>
+                             <div class="flex gap-2"><select id="c2-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select><select id="c2-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select></div>
                         </div>
-                        <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800 flex-grow">
-                            <canvas id="c2-chart"></canvas>
-                        </div>
+                        <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800"><canvas id="c2-chart"></canvas></div>
                     </div>
                     <div id="c2-overlay" class="absolute inset-0 flex items-center justify-center z-10 hidden">
                         <div class="bg-slate-900/90 p-6 rounded-xl border border-slate-600 text-center shadow-2xl backdrop-blur">
-                            <button onclick="triggerUpload()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold shadow-lg"><i class="fa-solid fa-plus mr-2"></i> Add Comparison File</button>
+                            <p class="text-slate-300 mb-4 font-medium">Add a second file to compare</p>
+                            <button onclick="triggerUpload()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-2 rounded-lg font-bold shadow-lg"><i class="fa-solid fa-plus mr-2"></i> Upload File B</button>
                         </div>
                     </div>
                 </div>
@@ -255,200 +165,114 @@
         </div>
     </main>
 
-    <footer class="bg-slate-950 border-t border-slate-800 py-4 text-center mt-auto shrink-0">
-        <p class="text-slate-500 text-sm font-medium">DataViz Pro V7 <span class="mx-2">|</span> Local Processing <span class="mx-2">|</span> Zero Data Leakage</p>
+    <footer class="bg-slate-950 border-t border-slate-800 py-4 text-center mt-auto">
+        <p class="text-slate-500 text-sm font-medium">Made with <span class="text-red-500">❤️</span> by Harsha Varthan E P</p>
     </footer>
 
-    <div id="welcome-modal" class="fixed inset-0 bg-slate-950/90 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
-        <div class="bg-slate-900 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-800 relative overflow-hidden">
-            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 to-emerald-500"></div>
-            <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl border border-slate-700">
-                <i class="fa-solid fa-cloud-arrow-up text-2xl text-blue-500"></i>
+    <div id="welcome-modal" class="fixed inset-0 bg-slate-950/90 z-[200] flex items-center justify-center p-4 backdrop-blur-sm">
+        <div class="bg-slate-900 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-800">
+            <div class="w-16 h-16 bg-blue-600 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/30"><i class="fa-solid fa-database text-2xl text-white"></i></div>
+            <h2 class="text-2xl font-bold text-white mb-2">Welcome Back!</h2>
+            <p id="welcome-text" class="text-slate-400 mb-8 text-sm">Secure, Server-Free Analytics.</p>
+            <div id="restore-section" class="hidden mb-4 p-3 bg-slate-800 rounded border border-slate-700">
+                <p class="text-xs text-emerald-400 mb-2">Found saved session</p>
+                <button onclick="restoreSession()" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded font-bold text-sm mb-2 transition">Resume Session</button>
+                <button onclick="clearAllData()" class="text-xs text-slate-500 hover:text-red-400 underline">Delete & Start New</button>
             </div>
-            <h2 class="text-2xl font-bold text-white mb-2">Private Analytics Workspace</h2>
-            <p id="welcome-text" class="text-slate-400 mb-8 text-sm leading-relaxed">Secure, server-free visualization. <br>Your data never leaves this browser.</p>
-            
-            <div id="restore-section" class="hidden mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                <p class="text-xs text-emerald-400 mb-3 flex items-center justify-center gap-2 font-semibold">
-                    <i class="fa-solid fa-circle-check"></i> Previous Session Found
-                </p>
-                <div class="grid grid-cols-2 gap-3">
-                    <button onclick="restoreSession()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded-lg font-bold text-xs transition shadow-lg shadow-emerald-900/20">Resume</button>
-                    <button onclick="clearAllData()" class="bg-slate-700 hover:bg-red-500/20 hover:text-red-400 text-slate-300 px-4 py-2 rounded-lg font-bold text-xs transition border border-slate-600">Discard</button>
-                </div>
-            </div>
-
-            <button onclick="triggerUpload()" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-6 py-3.5 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-3 group">
-                <i class="fa-solid fa-file-excel text-lg group-hover:scale-110 transition-transform"></i> Import Excel / CSV
-            </button>
+            <button id="upload-btn" onclick="triggerUpload()" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2"><i class="fa-solid fa-upload"></i> Upload Excel/CSV</button>
         </div>
     </div>
 
     <script>
-        /** --- PERSISTENCE LAYER (IndexedDB) --- */
-        const DB_NAME = 'DataVizDB_V7';
-        const STORE_NAME = 'files';
-        
+        /** === PERSISTENCE LAYER (IndexedDB) === */
+        const DB_NAME = 'DataVizDB_V2'; const STORE_NAME = 'files';
         const dbPromise = new Promise((resolve, reject) => {
             const request = indexedDB.open(DB_NAME, 2);
-            request.onupgradeneeded = (e) => {
-                if(!e.target.result.objectStoreNames.contains(STORE_NAME)) {
-                    e.target.result.createObjectStore(STORE_NAME);
-                }
+            request.onupgradeneeded = (e) => { 
+                if(!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME); 
             };
             request.onsuccess = (e) => resolve(e.target.result);
             request.onerror = (e) => reject(e);
         });
 
-        async function dbSave(key, val) {
-            const db = await dbPromise;
-            return new Promise((resolve, reject) => {
-                const tx = db.transaction(STORE_NAME, 'readwrite');
-                tx.objectStore(STORE_NAME).put(val, key);
-                tx.oncomplete = () => resolve();
-                tx.onerror = () => reject();
-            });
-        }
+        async function dbSave(key, val) { const db=await dbPromise; const tx=db.transaction(STORE_NAME,'readwrite'); tx.objectStore(STORE_NAME).put(val,key); return new Promise(r=>tx.oncomplete=r); }
+        async function dbGet(key) { const db=await dbPromise; return new Promise(r=>{ const req=db.transaction(STORE_NAME,'readonly').objectStore(STORE_NAME).get(key); req.onsuccess=()=>r(req.result); }); }
+        async function dbClear() { const db=await dbPromise; const tx=db.transaction(STORE_NAME,'readwrite'); tx.objectStore(STORE_NAME).clear(); return new Promise(r=>tx.oncomplete=r); }
 
-        async function dbGet(key) {
-            const db = await dbPromise;
-            return new Promise((resolve) => {
-                const tx = db.transaction(STORE_NAME, 'readonly');
-                const req = tx.objectStore(STORE_NAME).get(key);
-                req.onsuccess = () => resolve(req.result);
-                req.onerror = () => resolve(null);
-            });
-        }
-
-        async function dbClear() {
-            const db = await dbPromise;
-            const tx = db.transaction(STORE_NAME, 'readwrite');
-            tx.objectStore(STORE_NAME).clear();
-            return new Promise((resolve) => { tx.oncomplete = () => resolve(); });
-        }
-
-        /** --- STATE MANAGEMENT --- */
+        /** === APPLICATION STATE === */
         const App = {
-            files: {}, 
-            activeFile: null,
-            activeMode: 'single',
+            files: {}, activeFile: null, activeMode: 'single',
             charts: { single: null, c1: null, c2: null },
-            dirty: false,
-            // New V7 State Properties
-            multiY: [], // Array of column names selected for Y-Axis
-            seriesConfig: {} // Stores overrides (type: line/bar, axis: left/right) per column
+            // Stores config for multi-series [ {col: 'Sales', type: 'bar', axis: 'left'}, ... ]
+            seriesConfig: [], 
+            dirty: false
         };
 
-        // DOM Elements
         const els = {
-            input: document.getElementById('global-file-input'),
-            modal: document.getElementById('welcome-modal'),
+            input: document.getElementById('global-file-input'), modal: document.getElementById('welcome-modal'),
+            restoreSec: document.getElementById('restore-section'), welcomeText: document.getElementById('welcome-text'), saveStatus: document.getElementById('save-status'),
             viewSingle: document.getElementById('view-single'), viewCompare: document.getElementById('view-compare'),
-            
-            // Single View Controls
-            sFile: document.getElementById('s-file'), sX: document.getElementById('s-xaxis'), sType: document.getElementById('s-type'),
-            sYLabel: document.getElementById('s-yaxis-label'), sYDrop: document.getElementById('s-yaxis-dropdown'),
-            settingsPanel: document.getElementById('settings-panel'), seriesConfigContainer: document.getElementById('series-config-container'),
-            
-            // Tables
+            btnSingle: document.getElementById('btn-mode-single'), btnCompare: document.getElementById('btn-mode-compare'),
+            // Single View
+            sFile: document.getElementById('s-file'), sX: document.getElementById('s-xaxis'),
             sThead: document.getElementById('s-table-head'), sTbody: document.getElementById('s-table-body'), sCount: document.getElementById('s-row-count'),
-            saveEditsBtn: document.getElementById('save-edits-btn'),
-            
-            // Compare View Controls
-            c1File: document.getElementById('c1-file'), c1X: document.getElementById('c1-xaxis'), c1Y: document.getElementById('c1-yaxis'), c1Type: document.getElementById('c1-type'),
-            c2File: document.getElementById('c2-file'), c2X: document.getElementById('c2-xaxis'), c2Y: document.getElementById('c2-yaxis'), c2Type: document.getElementById('c2-type'),
+            seriesLabel: document.getElementById('series-count-label'),
+            // Compare View
+            c1File: document.getElementById('c1-file'), c1X: document.getElementById('c1-xaxis'), c1Y: document.getElementById('c1-yaxis'), c1Thead: document.getElementById('c1-table-head'), c1Tbody: document.getElementById('c1-table-body'),
+            c2File: document.getElementById('c2-file'), c2X: document.getElementById('c2-xaxis'), c2Y: document.getElementById('c2-yaxis'), c2Wrapper: document.getElementById('c2-wrapper'), c2Overlay: document.getElementById('c2-overlay'),
         };
 
-        /** --- INITIALIZATION --- */
-        (async function checkStorage() {
+        // --- INITIALIZATION ---
+        (async function() {
             const savedState = await dbGet('appState');
-            if(savedState && Object.keys(savedState.files).length > 0) {
-                document.getElementById('restore-section').classList.remove('hidden');
-                document.getElementById('welcome-text').innerText = `Ready to resume with ${Object.keys(savedState.files).length} datasets.`;
+            if(savedState && savedState.files && Object.keys(savedState.files).length > 0) {
+                els.restoreSec.classList.remove('hidden'); els.welcomeText.innerText = `Found ${Object.keys(savedState.files).length} datasets.`; document.getElementById('upload-btn').classList.add('hidden');
             }
         })();
 
         async function restoreSession() {
             const saved = await dbGet('appState');
             if(saved) {
-                App.files = saved.files;
-                App.activeFile = saved.activeFile;
-                App.multiY = saved.multiY || [];
-                App.seriesConfig = saved.seriesConfig || {};
-                
+                App.files = saved.files; App.activeFile = saved.activeFile; App.seriesConfig = saved.seriesConfig || [];
                 // Rehydrate Sets
-                Object.values(App.files).forEach(f => {
-                    Object.keys(f.columnFilters).forEach(col => {
-                        f.columnFilters[col] = new Set(f.columnFilters[col]);
-                    });
-                });
-                els.modal.style.display = 'none';
-                initUI();
+                Object.values(App.files).forEach(f => { Object.keys(f.columnFilters).forEach(col => f.columnFilters[col] = new Set(f.columnFilters[col])); });
+                els.modal.style.display = 'none'; initUI();
             }
         }
 
-        function clearAllData() {
-            if(confirm("Permanently delete all local data?")) {
-                dbClear();
-                location.reload();
-            }
-        }
+        function clearAllData() { if(confirm("Delete all data?")) { dbClear(); location.reload(); } }
 
-        async function saveState() {
-            if(!App.dirty) return;
-            const status = document.getElementById('save-status');
-            status.innerText = "Saving...";
-            
-            // Prepare for storage (Set -> Array)
-            const serializableFiles = JSON.parse(JSON.stringify(App.files));
-            Object.keys(App.files).forEach(fname => {
-                const f = App.files[fname];
-                Object.keys(f.columnFilters).forEach(col => {
-                    serializableFiles[fname].columnFilters[col] = Array.from(f.columnFilters[col]);
-                });
-            });
-
-            await dbSave('appState', {
-                files: serializableFiles,
-                activeFile: App.activeFile,
-                multiY: App.multiY,
-                seriesConfig: App.seriesConfig
-            });
-            
-            App.dirty = false;
-            status.innerText = "Saved";
-            setTimeout(() => status.innerText = "", 2000);
-        }
-
-        /** --- CORE LOGIC --- */
+        // --- EVENT HANDLERS ---
         els.input.addEventListener('change', handleUpload);
+        els.btnSingle.addEventListener('click', () => switchMode('single'));
+        els.btnCompare.addEventListener('click', () => switchMode('compare'));
+        els.sFile.addEventListener('change', (e) => loadSingleFile(e.target.value));
+        els.sX.addEventListener('change', () => { updateSingleChart(); });
         
+        // Close dropdowns on click outside
+        document.addEventListener('click', (e) => {
+            if(!e.target.closest('.filter-dropdown') && !e.target.closest('.filter-trigger')) document.querySelectorAll('.filter-dropdown').forEach(d=>d.remove());
+            if(!e.target.closest('.series-dropdown') && !e.target.closest('#btn-series-mgr')) document.querySelectorAll('.series-dropdown').forEach(d=>d.remove());
+        });
+
+        function triggerUpload() { els.input.click(); }
+
         function handleUpload(e) {
             const files = Array.from(e.target.files);
             if (!files.length) return;
             els.modal.style.display = 'none';
-
             let count = 0;
             files.forEach(f => {
                 const reader = new FileReader();
                 reader.onload = (ev) => {
-                    const data = new Uint8Array(ev.target.result);
-                    const wb = XLSX.read(data, { type: 'array' });
+                    const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
                     const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
-
                     if(json.length) {
-                        const headers = Object.keys(json[0]);
-                        App.files[f.name] = { 
-                            rawData: json, filteredData: json, headers: headers, columnFilters: {} 
-                        };
-                        App.activeFile = f.name;
+                        App.files[f.name] = { rawData: json, filteredData: json, headers: Object.keys(json[0]), columnFilters: {} };
+                        if(!App.activeFile) App.activeFile = f.name;
                         App.dirty = true;
                     }
-                    count++;
-                    if(count === files.length) {
-                        initUI();
-                        saveState();
-                    }
+                    if(++count === files.length) { initUI(); saveState(); }
                 };
                 reader.readAsArrayBuffer(f);
             });
@@ -457,512 +281,382 @@
 
         function initUI() {
             populateFileSelects();
-            document.getElementById('btn-mode-single').addEventListener('click', () => switchMode('single'));
-            document.getElementById('btn-mode-compare').addEventListener('click', () => switchMode('compare'));
-            
-            // Listeners
-            els.sFile.addEventListener('change', (e) => loadSingleFile(e.target.value));
-            els.sX.addEventListener('change', updateSingleChart);
-            els.sType.addEventListener('change', updateSingleChart);
-            
-            if(App.activeMode === 'single') loadSingleFile(App.activeFile);
-            else setupCompareLayout();
+            if(App.activeMode === 'single') loadSingleFile(App.activeFile); else setupCompareLayout();
         }
 
         function populateFileSelects() {
             const names = Object.keys(App.files);
             [els.sFile, els.c1File, els.c2File].forEach(sel => {
-                const v = sel.value; sel.innerHTML = '';
-                names.forEach(n => sel.add(new Option(n,n)));
-                if(names.includes(v)) sel.value = v; else if(App.activeFile) sel.value = App.activeFile;
+                const v=sel.value; sel.innerHTML=''; names.forEach(n=>sel.add(new Option(n,n)));
+                if(names.includes(v)) sel.value=v; else if(App.activeFile) sel.value=App.activeFile;
             });
         }
 
         function switchMode(mode) {
             App.activeMode = mode;
-            const btnS = document.getElementById('btn-mode-single');
-            const btnC = document.getElementById('btn-mode-compare');
-            
             if(mode === 'single') {
-                els.viewSingle.classList.remove('hidden'); els.viewCompare.classList.add('hidden'); els.viewCompare.classList.remove('flex');
-                btnS.classList.add('bg-blue-600', 'text-white'); btnS.classList.remove('text-slate-400');
-                btnC.classList.remove('bg-blue-600', 'text-white'); btnC.classList.add('text-slate-400');
+                els.viewSingle.classList.remove('hidden'); els.viewCompare.classList.add('hidden');
+                els.btnSingle.classList.replace('text-slate-400','text-white'); els.btnSingle.classList.add('bg-blue-600');
+                els.btnCompare.classList.replace('text-white','text-slate-400'); els.btnCompare.classList.remove('bg-blue-600');
                 if(App.activeFile) loadSingleFile(App.activeFile);
             } else {
                 els.viewSingle.classList.add('hidden'); els.viewCompare.classList.remove('hidden'); els.viewCompare.classList.add('flex');
-                btnC.classList.add('bg-blue-600', 'text-white'); btnC.classList.remove('text-slate-400');
-                btnS.classList.remove('bg-blue-600', 'text-white'); btnS.classList.add('text-slate-400');
+                els.btnCompare.classList.replace('text-slate-400','text-white'); els.btnCompare.classList.add('bg-blue-600');
+                els.btnSingle.classList.replace('text-white','text-slate-400'); els.btnSingle.classList.remove('bg-blue-600');
                 setupCompareLayout();
             }
         }
 
-        /** --- SINGLE VIEW & MULTI-SELECT LOGIC --- */
-        function loadSingleFile(fname) {
-            App.activeFile = fname;
-            els.sFile.value = fname;
-            const f = App.files[fname];
-            
-            // X-Axis
-            els.sX.innerHTML = '';
-            f.headers.forEach(h => els.sX.add(new Option(h, h)));
-            autoGuessX(els.sX, f.headers);
+        async function saveState() {
+            if(!App.dirty) return;
+            els.saveStatus.innerText = "Saving...";
+            const serializable = JSON.parse(JSON.stringify(App.files));
+            Object.keys(App.files).forEach(f => {
+                Object.keys(App.files[f].columnFilters).forEach(c => serializable[f].columnFilters[c] = Array.from(App.files[f].columnFilters[c]));
+            });
+            await dbSave('appState', { files: serializable, activeFile: App.activeFile, activeMode: App.activeMode, seriesConfig: App.seriesConfig });
+            App.dirty = false; els.saveStatus.innerText = "Saved"; setTimeout(()=>els.saveStatus.innerText="",2000);
+        }
 
-            // Populate Multi-Select Y Dropdown
-            populateMultiSelect(f.headers);
+        // --- CORE: SERIES MANAGER (MULTI-AXIS / COMBO CHART UI) ---
+        window.toggleSeriesManager = (btn) => {
+            const existing = document.querySelector('.series-dropdown');
+            if(existing) return existing.remove();
+            if(!App.activeFile) return;
+
+            const f = App.files[App.activeFile];
+            const dd = document.createElement('div');
+            dd.className = 'series-dropdown p-4 text-slate-300';
             
-            // Table
-            renderHeaders(fname, els.sThead);
-            renderTable(els.sTbody, f.filteredData, f.headers);
+            // Build list of columns
+            let html = `<div class="font-bold text-xs uppercase text-slate-500 mb-2 flex justify-between"><span>Available Columns</span> <span>Type | Axis</span></div>
+            <div class="overflow-y-auto flex-grow space-y-2 pr-2 custom-scroll">`;
+
+            f.headers.forEach(h => {
+                // Check if this header is currently in config
+                const cfg = App.seriesConfig.find(c => c.col === h);
+                const isSelected = !!cfg;
+                
+                html += `
+                <div class="flex flex-col bg-slate-800 rounded border border-slate-700 p-2 gap-2">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-white truncate w-32">
+                            <input type="checkbox" onchange="updateSeriesConfig('${h}', this.checked)" ${isSelected ? 'checked' : ''} class="accent-blue-500 w-4 h-4">
+                            <span class="truncate" title="${h}">${h}</span>
+                        </label>
+                        ${isSelected ? `
+                            <select onchange="updateSeriesType('${h}', this.value)" class="bg-slate-900 border border-slate-600 text-[10px] rounded px-1 py-0.5 outline-none">
+                                <option value="bar" ${cfg.type=='bar'?'selected':''}>Bar</option>
+                                <option value="line" ${cfg.type=='line'?'selected':''}>Line</option>
+                                <option value="area" ${cfg.type=='area'?'selected':''}>Area</option>
+                            </select>
+                        ` : ''}
+                    </div>
+                    ${isSelected ? `
+                    <div class="flex items-center justify-between border-t border-slate-700 pt-1 mt-1">
+                        <span class="text-[10px] text-slate-500">Right Axis?</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" onchange="updateSeriesAxis('${h}', this.checked)" ${cfg.axis=='right'?'checked':''}>
+                            <div class="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>` : ''}
+                </div>`;
+            });
+            html += `</div>`;
+
+            dd.innerHTML = html;
+            document.body.appendChild(dd);
             
+            const rect = btn.getBoundingClientRect();
+            dd.style.left = `${rect.left}px`;
+            dd.style.top = `${rect.bottom + 5}px`;
+        };
+
+        window.updateSeriesConfig = (col, checked) => {
+            if(checked) {
+                // Add default config
+                App.seriesConfig.push({ col: col, type: 'bar', axis: 'left' });
+            } else {
+                App.seriesConfig = App.seriesConfig.filter(c => c.col !== col);
+            }
+            refreshSeriesUI();
+        };
+
+        window.updateSeriesType = (col, type) => {
+            const c = App.seriesConfig.find(x => x.col === col);
+            if(c) { c.type = type; refreshSeriesUI(); }
+        };
+
+        window.updateSeriesAxis = (col, isRight) => {
+            const c = App.seriesConfig.find(x => x.col === col);
+            if(c) { c.axis = isRight ? 'right' : 'left'; refreshSeriesUI(); }
+        };
+
+        function refreshSeriesUI() {
+            // Re-render the dropdown content to show/hide controls
+            const btn = document.querySelector('.series-dropdown'); 
+            if(btn) { 
+                const triggerBtn = document.getElementById('btn-series-mgr');
+                btn.remove(); toggleSeriesManager(triggerBtn); 
+            }
             updateSingleChart();
             App.dirty = true; saveState();
         }
 
-        function autoGuessX(select, headers) {
-            let best = headers[0];
-            headers.forEach(h => { if(h.toLowerCase().match(/date|month|year|category|name/)) best = h; });
-            select.value = best;
-        }
 
-        function populateMultiSelect(headers) {
-            const container = els.sYDrop;
-            container.innerHTML = '';
+        // --- DATA PROCESSING & AGGREGATION (PIVOT ENGINE) ---
+        function getAggregatedData(data, xCol, config) {
+            // Groups data by X-Column and Sums Y-Columns
+            const grouped = {};
             
-            // Logic to default select numeric columns if App.multiY is empty
-            if(App.multiY.length === 0) {
-                headers.forEach(h => {
-                    if(h.toLowerCase().match(/val|amt|rev|cost|prof|num|qty/)) App.multiY.push(h);
-                });
-                if(App.multiY.length === 0 && headers.length > 1) App.multiY.push(headers[1]); 
-            }
-
-            headers.forEach(h => {
-                const div = document.createElement('div');
-                div.className = 'multi-select-option';
-                const isChecked = App.multiY.includes(h);
-                div.innerHTML = `<input type="checkbox" value="${h}" ${isChecked ? 'checked' : ''}> <span>${h}</span>`;
-                div.onclick = (e) => {
-                    if(e.target.tagName !== 'INPUT') {
-                        const cb = div.querySelector('input'); cb.checked = !cb.checked;
-                        handleMultiSelectChange(cb);
-                    }
-                };
-                div.querySelector('input').onchange = (e) => handleMultiSelectChange(e.target);
-                container.appendChild(div);
-            });
-            updateMultiSelectLabel();
-        }
-
-        function handleMultiSelectChange(cb) {
-            if(cb.checked) {
-                if(!App.multiY.includes(cb.value)) App.multiY.push(cb.value);
-            } else {
-                App.multiY = App.multiY.filter(x => x !== cb.value);
-            }
-            updateMultiSelectLabel();
-            updateSingleChart();
-        }
-
-        function updateMultiSelectLabel() {
-            const count = App.multiY.length;
-            els.sYLabel.innerText = count === 0 ? "Select Columns..." : 
-                                   count === 1 ? App.multiY[0] : `${count} Columns Selected`;
-            // Refresh Settings Panel content
-            renderSettingsPanel();
-        }
-
-        function toggleMultiSelect() {
-            els.sYDrop.classList.toggle('show');
-        }
-
-        // Close dropdown when clicking outside
-        window.addEventListener('click', (e) => {
-            if (!e.target.closest('.multi-select-container')) {
-                els.sYDrop.classList.remove('show');
-            }
-        });
-
-        /** --- ADVANCED CHARTING ENGINE (V7) --- */
-        function toggleSettings() {
-            els.settingsPanel.classList.toggle('open');
-        }
-
-        function renderSettingsPanel() {
-            const container = els.seriesConfigContainer;
-            container.innerHTML = '';
-            
-            if(App.multiY.length === 0) {
-                container.innerHTML = '<p class="text-xs text-slate-500 italic">Select Y-Axis columns first.</p>';
-                return;
-            }
-
-            App.multiY.forEach((col, idx) => {
-                // Initialize config if missing
-                if(!App.seriesConfig[col]) App.seriesConfig[col] = { type: 'default', axis: 'left' };
-                const cfg = App.seriesConfig[col];
+            data.forEach(row => {
+                const xVal = row[xCol] || "(Blank)";
+                if(!grouped[xVal]) grouped[xVal] = { _count: 0 };
+                grouped[xVal]._count++;
                 
-                const div = document.createElement('div');
-                div.className = 'bg-slate-800 p-2 rounded border border-slate-700';
-                div.innerHTML = `
-                    <div class="flex items-center justify-between mb-2">
-                        <span class="text-xs font-bold text-slate-300 truncate w-24" title="${col}">${col}</span>
-                        <span class="w-3 h-3 rounded-full" style="background:${getColor(idx)}"></span>
-                    </div>
-                    <div class="flex gap-2">
-                        <select class="bg-slate-900 text-[10px] text-white p-1 rounded border border-slate-600 w-1/2" 
-                                onchange="updateSeriesConfig('${col}', 'type', this.value)">
-                            <option value="default" ${cfg.type==='default'?'selected':''}>Auto</option>
-                            <option value="bar" ${cfg.type==='bar'?'selected':''}>Bar</option>
-                            <option value="line" ${cfg.type==='line'?'selected':''}>Line</option>
-                        </select>
-                        <select class="bg-slate-900 text-[10px] text-white p-1 rounded border border-slate-600 w-1/2"
-                                onchange="updateSeriesConfig('${col}', 'axis', this.value)">
-                            <option value="left" ${cfg.axis==='left'?'selected':''}>Left Axis</option>
-                            <option value="right" ${cfg.axis==='right'?'selected':''}>Right Axis</option>
-                        </select>
-                    </div>
-                `;
-                container.appendChild(div);
+                config.forEach(cfg => {
+                    let val = row[cfg.col];
+                    // Clean number
+                    if(typeof val === 'string') val = parseFloat(val.replace(/[^0-9.-]+/g,""));
+                    if(isNaN(val)) val = 0;
+                    
+                    if(!grouped[xVal][cfg.col]) grouped[xVal][cfg.col] = 0;
+                    grouped[xVal][cfg.col] += val;
+                });
+            });
+
+            return Object.keys(grouped).map(k => {
+                const obj = { [xCol]: k };
+                config.forEach(cfg => obj[cfg.col] = grouped[k][cfg.col]);
+                return obj;
             });
         }
 
-        window.updateSeriesConfig = (col, key, val) => {
-            if(!App.seriesConfig[col]) App.seriesConfig[col] = {};
-            App.seriesConfig[col][key] = val;
+        function loadSingleFile(fname) {
+            App.activeFile = fname; els.sFile.value = fname;
+            const f = App.files[fname];
+            
+            // Populate X Axis Select
+            els.sX.innerHTML = ''; f.headers.forEach(h => els.sX.add(new Option(h,h)));
+            // Guess X Axis if not set
+            if(!els.sX.value) els.sX.value = f.headers.find(h=>h.toLowerCase().match(/date|month|year|name|category/)) || f.headers[0];
+
+            // Default Series if none
+            if(App.seriesConfig.length === 0) {
+                const potentialY = f.headers.find(h=>h.toLowerCase().match(/sales|total|amount|val|profit/)) || f.headers[1];
+                if(potentialY) App.seriesConfig = [{ col: potentialY, type: 'bar', axis: 'left' }];
+            }
+
+            renderHeaders(fname, els.sThead, 'single');
+            renderTable(els.sTbody, f.filteredData, f.headers, els.sCount, true);
             updateSingleChart();
-            App.dirty = true;
-        };
+            App.dirty=true; saveState();
+        }
 
         function updateSingleChart() {
             const f = App.files[App.activeFile];
-            if(!f || App.multiY.length === 0) return;
+            if(!f || !App.seriesConfig.length) return;
 
             const xCol = els.sX.value;
-            const baseType = els.sType.value;
-            
-            const labels = f.filteredData.map(d => d[xCol]);
-            
-            const datasets = App.multiY.map((col, idx) => {
-                const rawVals = f.filteredData.map(d => d[col]);
-                const cleanVals = rawVals.map(v => {
-                    if(typeof v === 'string') return parseFloat(v.replace(/[^0-9.-]+/g,"")) || 0;
-                    return v || 0;
-                });
+            els.seriesLabel.innerText = `${App.seriesConfig.length} Series Selected`;
 
-                const cfg = App.seriesConfig[col] || { type: 'default', axis: 'left' };
-                const specificType = cfg.type === 'default' ? baseType : cfg.type;
-                
-                // Color gen
-                const color = getColor(idx);
+            // 1. Aggregate Data (Pivot)
+            const chartData = getAggregatedData(f.filteredData, xCol, App.seriesConfig);
+            
+            // 2. Prepare Datasets
+            const labels = chartData.map(d => d[xCol]);
+            const datasets = App.seriesConfig.map((cfg, idx) => {
+                const colorBase = (idx * 137) % 360;
+                const isLine = cfg.type === 'line' || cfg.type === 'area';
                 
                 return {
-                    label: col,
-                    data: cleanVals,
-                    type: specificType,
+                    label: cfg.col,
+                    data: chartData.map(d => d[cfg.col]),
+                    type: cfg.type === 'area' ? 'line' : cfg.type,
+                    fill: cfg.type === 'area',
                     yAxisID: cfg.axis === 'right' ? 'y1' : 'y',
-                    backgroundColor: specificType.includes('line') ? color : color + '99', // transparent for bars
-                    borderColor: color,
+                    borderColor: `hsla(${colorBase}, 70%, 50%, 1)`,
+                    backgroundColor: isLine ? `hsla(${colorBase}, 70%, 50%, 0.2)` : `hsla(${colorBase}, 70%, 60%, 0.7)`,
                     borderWidth: 2,
-                    pointRadius: 3,
-                    tension: 0.3,
-                    fill: false
+                    tension: 0.3
                 };
             });
 
-            // Trendline Logic (Simple Linear Regression)
-            const showTrend = document.getElementById('opt-trendline').checked;
-            if(showTrend && datasets.length > 0) {
-                // Just do it for the first series for now to keep it clean
-                const yVals = datasets[0].data;
-                const n = yVals.length;
-                let sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
-                for (let i = 0; i < n; i++) {
-                    sumX += i; sumY += yVals[i];
-                    sumXY += (i * yVals[i]); sumXX += (i * i);
-                }
-                const slope = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX);
-                const intercept = (sumY - slope * sumX) / n;
-                const trendData = [];
-                for (let i = 0; i < n; i++) trendData.push(slope * i + intercept);
-                
-                datasets.push({
-                    label: 'Trend (' + datasets[0].label + ')',
-                    data: trendData,
-                    type: 'line',
-                    borderColor: '#ffffff',
-                    borderDash: [5, 5],
-                    pointRadius: 0,
-                    borderWidth: 1,
-                    yAxisID: datasets[0].yAxisID
-                });
-            }
-
-            renderChartInstance('s-chart', datasets, labels, baseType);
-        }
-
-        function getColor(i) {
-            const palette = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
-            return palette[i % palette.length];
-        }
-
-        function renderChartInstance(canvasId, datasets, labels, baseType) {
-            const ctx = document.getElementById(canvasId).getContext('2d');
-            
+            // 3. Render
             if(App.charts.single) App.charts.single.destroy();
-
-            // Check if any dataset needs right axis
-            const hasRightAxis = datasets.some(d => d.yAxisID === 'y1');
-            const showDataLabels = document.getElementById('opt-datalabels').checked;
-            const isStacked = document.getElementById('opt-stacked').checked;
-
+            
+            const ctx = document.getElementById('s-chart').getContext('2d');
             App.charts.single = new Chart(ctx, {
-                type: baseType, // Default type, overridden by dataset.type
+                type: 'bar', // default type, overridden by datasets
                 data: { labels: labels, datasets: datasets },
                 options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: { 
+                        legend: { labels: { color: '#cbd5e1' } }, 
+                        tooltip: { backgroundColor: '#1e293b', titleColor: '#fff', bodyColor: '#cbd5e1', borderColor: '#475569', borderWidth: 1 } 
+                    },
                     scales: {
-                        x: { 
-                            stacked: isStacked,
-                            grid: { color: '#1e293b' },
-                            ticks: { color: '#94a3b8' }
-                        },
-                        y: {
-                            type: 'linear', display: true, position: 'left',
-                            stacked: isStacked,
-                            grid: { color: '#1e293b' },
-                            ticks: { color: '#94a3b8' }
+                        x: { ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' } },
+                        y: { 
+                            type: 'linear', display: true, position: 'left', 
+                            ticks: { color: '#94a3b8' }, grid: { color: '#1e293b' },
+                            title: { display: true, text: 'Primary Axis' }
                         },
                         y1: {
-                            type: 'linear', display: hasRightAxis, position: 'right',
-                            grid: { drawOnChartArea: false }, // only show grid for left axis
-                            ticks: { color: '#cbd5e1' }
-                        }
-                    },
-                    plugins: {
-                        legend: { position: 'bottom', labels: { color: '#cbd5e1' } },
-                        tooltip: { 
-                            mode: 'index', intersect: false, 
-                            backgroundColor: 'rgba(15, 23, 42, 0.9)', 
-                            titleColor: '#fff', bodyColor: '#cbd5e1', borderColor: '#334155', borderWidth: 1 
-                        }
-                    },
-                    animation: {
-                        onComplete: function() {
-                            if(showDataLabels) {
-                                const ctx = this.ctx;
-                                ctx.font = "bold 10px Inter";
-                                ctx.fillStyle = "white";
-                                ctx.textAlign = "center";
-                                ctx.textBaseline = "bottom";
-                                
-                                this.data.datasets.forEach(function (dataset, i) {
-                                    if(dataset.label.includes('Trend')) return;
-                                    const meta = App.charts.single.getDatasetMeta(i);
-                                    meta.data.forEach(function (bar, index) {
-                                        const data = dataset.data[index];
-                                        ctx.fillText(data, bar.x, bar.y - 5);
-                                    });
-                                });
-                            }
+                            type: 'linear', display: App.seriesConfig.some(c=>c.axis=='right'), position: 'right',
+                            grid: { drawOnChartArea: false }, ticks: { color: '#f59e0b' },
+                            title: { display: true, text: 'Secondary Axis', color: '#f59e0b' }
                         }
                     }
                 }
             });
         }
 
-        /** --- TABLE & EDITING --- */
-        function renderHeaders(fname, thead) {
-            const file = App.files[fname];
-            thead.innerHTML = file.headers.map(h => {
-                const isFiltered = file.columnFilters[h] && file.columnFilters[h].size > 0;
-                return `
-                <th class="px-4 py-3 bg-slate-900 border-b border-slate-700 whitespace-nowrap group select-none relative">
+        // --- EDITABLE TABLE LOGIC ---
+        function renderTable(tbody, data, headers, countEl, editable=false) {
+            const rows = data.slice(0, 100);
+            tbody.innerHTML = rows.map((r, rIdx) => `
+                <tr class="hover:bg-slate-800 border-b border-slate-800 transition group">
+                    ${headers.map(h => `
+                        <td class="${editable?'cursor-text hover:bg-slate-700':''} px-4 py-2 truncate max-w-[120px] outline-none transition-colors" 
+                            ${editable ? `contenteditable="true" onblur="updateCell('${App.activeFile}', ${rIdx}, '${h}', this)"` : ''}>
+                            ${r[h] || ''}
+                        </td>`).join('')}
+                </tr>`).join('');
+            if(countEl) countEl.innerText = `${data.length} rows (showing 100)`;
+        }
+
+        window.updateCell = (fname, rowIdx, col, el) => {
+            const newVal = el.innerText;
+            App.files[fname].rawData[rowIdx][col] = newVal;
+            // Update filtered data reference too if simple
+            App.files[fname].filteredData[rowIdx][col] = newVal;
+            App.dirty = true;
+            // Debounce chart update
+            clearTimeout(window._updateTimer);
+            window._updateTimer = setTimeout(updateSingleChart, 500);
+        };
+
+        // --- FILTERING ---
+        function renderHeaders(fname, thead, ctxId) {
+            const f = App.files[fname];
+            thead.innerHTML = f.headers.map(h => {
+                const isActive = f.columnFilters[h] && f.columnFilters[h].size > 0;
+                return `<th class="px-4 py-3 bg-slate-900 border-b border-slate-700 whitespace-nowrap relative">
                     <div class="flex items-center justify-between gap-2">
-                        <span class="text-xs text-blue-400 font-bold tracking-wider">${h}</span>
-                        <button class="text-[10px] p-1 rounded hover:bg-slate-700 ${isFiltered ? 'text-blue-400' : 'text-slate-600'}" 
-                                onclick="toggleFilter('${fname}', '${h}', this)">
-                            <i class="fa-solid fa-filter"></i>
-                        </button>
+                        <span class="font-bold text-slate-300">${h}</span>
+                        <button class="filter-trigger p-1 rounded hover:bg-slate-700 ${isActive?'text-blue-400':'text-slate-600'}" 
+                        onclick="toggleFilter('${fname}','${h}',this,'${ctxId}')"><i class="fa-solid fa-filter"></i></button>
                     </div>
                 </th>`;
             }).join('');
         }
 
-        function renderTable(tbody, data, headers) {
-            // Only render first 100 rows for performance
-            const rows = data.slice(0, 100);
-            els.sCount.innerText = `${data.length} rows`;
-            
-            tbody.innerHTML = rows.map((r, rIdx) => `
-                <tr class="hover:bg-slate-800 border-b border-slate-800 transition">
-                    ${headers.map((h, cIdx) => `
-                        <td class="px-4 py-2 text-xs truncate max-w-[120px]" 
-                            contenteditable="true" 
-                            onblur="handleCellEdit(${rIdx}, '${h}', this)">${r[h]}</td>`
-                    ).join('')}
-                </tr>`).join('');
-        }
+        window.toggleFilter = (fname, col, btn, ctxId) => {
+            const existing = document.querySelector('.filter-dropdown'); if(existing) existing.remove();
+            const f = App.files[fname];
+            const vals = [...new Set(f.rawData.map(r => r[col]))].sort();
+            const active = f.columnFilters[col];
 
-        window.handleCellEdit = (rowIdx, colName, el) => {
-            // Note: This updates the Filtered View directly. 
-            // In a full app, you'd map back to rawData IDs. 
-            const val = el.innerText;
-            App.files[App.activeFile].filteredData[rowIdx][colName] = val;
-            
-            // Show save button
-            document.getElementById('save-edits-btn').classList.remove('hidden');
+            const dd = document.createElement('div'); dd.className = 'filter-dropdown';
+            dd.innerHTML = `
+                <div class="p-2 border-b border-slate-700"><input type="text" placeholder="Search..." class="w-full bg-slate-800 text-xs p-1 rounded text-white outline-none" onkeyup="filterList(this)"></div>
+                <div class="filter-list p-2 max-h-48 overflow-y-auto space-y-1">
+                    ${vals.map(v => `<label class="flex gap-2 text-xs text-slate-300 cursor-pointer hover:bg-slate-700 p-1 rounded"><input type="checkbox" value="${v}" ${!active || active.has(String(v))?'checked':''} class="accent-blue-500"> ${v}</label>`).join('')}
+                </div>
+                <div class="flex justify-between p-2 bg-slate-800 rounded-b">
+                    <button class="text-xs text-blue-400 font-bold" onclick="applyFilter('${fname}','${col}',this,'${ctxId}')">Apply</button>
+                    <button class="text-xs text-slate-500" onclick="clearFilter('${fname}','${col}','${ctxId}')">Clear</button>
+                </div>`;
+            document.body.appendChild(dd);
+            const rect = btn.getBoundingClientRect(); dd.style.left=`${rect.left}px`; dd.style.top=`${rect.bottom+5}px`;
+        };
+
+        window.filterList = (inp) => { const t=inp.value.toLowerCase(); inp.closest('.filter-dropdown').querySelectorAll('label').forEach(l=>l.style.display=l.innerText.toLowerCase().includes(t)?'flex':'none'); }
+        
+        window.applyFilter = (fname, col, btn, ctxId) => {
+            const cbs = btn.closest('.filter-dropdown').querySelectorAll('input:checked');
+            const set = new Set(Array.from(cbs).map(c=>c.value));
+            App.files[fname].columnFilters[col] = set;
+            document.querySelector('.filter-dropdown').remove();
+            recalcFilter(fname); refreshView(ctxId);
         };
         
-        window.saveTableEdits = () => {
-            updateSingleChart(); // Refresh chart with new numbers
-            document.getElementById('save-edits-btn').classList.add('hidden');
+        window.clearFilter = (fname, col, ctxId) => { delete App.files[fname].columnFilters[col]; document.querySelector('.filter-dropdown').remove(); recalcFilter(fname); refreshView(ctxId); };
+
+        function recalcFilter(fname) {
+            const f = App.files[fname];
+            f.filteredData = f.rawData.filter(r => Object.entries(f.columnFilters).every(([c,s]) => s.has(String(r[c]))));
             App.dirty = true; saveState();
-        };
+        }
 
-        // --- FILTERING LOGIC (Simplified for V7) ---
-        window.toggleFilter = (fname, col, btn) => {
-            const existing = document.querySelector('.filter-popup');
-            if(existing) existing.remove();
+        function refreshView(ctxId) { 
+            if(ctxId === 'single') loadSingleFile(App.activeFile); 
+            else setupCompareLayout(); // simplistic refresh for compare
+        }
 
-            const file = App.files[fname];
-            // Get unique values
-            const unique = [...new Set(file.rawData.map(r => r[col]))].sort();
-            const activeSet = file.columnFilters[col];
-
-            const div = document.createElement('div');
-            div.className = 'filter-popup fixed bg-slate-800 border border-slate-600 rounded shadow-2xl z-50 p-2 flex flex-col gap-2 w-48';
-            div.style.maxHeight = '300px';
-            
-            // Positioning
-            const rect = btn.getBoundingClientRect();
-            div.style.left = rect.left + 'px';
-            div.style.top = (rect.bottom + 5) + 'px';
-
-            div.innerHTML = `
-                <input type="text" placeholder="Search..." class="bg-slate-900 border border-slate-700 text-xs p-1 rounded text-white w-full mb-1">
-                <div class="overflow-y-auto flex-grow flex flex-col gap-1 max-h-40">
-                    ${unique.map(v => `
-                        <label class="flex items-center gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1 rounded cursor-pointer">
-                            <input type="checkbox" value="${v}" ${!activeSet || activeSet.has(String(v)) ? 'checked' : ''}> ${v}
-                        </label>
-                    `).join('')}
-                </div>
-                <div class="flex justify-between border-t border-slate-700 pt-2">
-                     <button class="text-xs text-slate-400" onclick="this.closest('.filter-popup').remove()">Close</button>
-                     <button class="text-xs text-blue-400 font-bold" onclick="applyFilter('${col}')">Apply</button>
-                </div>
-            `;
-            
-            document.body.appendChild(div);
-            
-            // Simple Search
-            div.querySelector('input').onkeyup = function(e) {
-                const term = e.target.value.toLowerCase();
-                div.querySelectorAll('label').forEach(l => {
-                    l.style.display = l.innerText.toLowerCase().includes(term) ? 'flex' : 'none';
-                });
-            }
-        };
-
-        window.applyFilter = (col) => {
-            const popup = document.querySelector('.filter-popup');
-            const cbs = popup.querySelectorAll('input[type="checkbox"]');
-            const newSet = new Set();
-            let all = true;
-            cbs.forEach(cb => { if(cb.checked) newSet.add(cb.value); else all = false; });
-            
-            const f = App.files[App.activeFile];
-            if(all) delete f.columnFilters[col];
-            else f.columnFilters[col] = newSet;
-
-            // Re-filter data
-            f.filteredData = f.rawData.filter(r => {
-                return Object.entries(f.columnFilters).every(([k, set]) => set.has(String(r[k])));
-            });
-            
-            popup.remove();
-            loadSingleFile(App.activeFile); // Re-render everything
-        };
-
-
-        /** --- COMPARE MODE LOGIC (Legacy Support) --- */
+        // --- LEGACY COMPARE SUPPORT (Basic 1v1) ---
         function setupCompareLayout() {
             const files = Object.keys(App.files);
-            // Re-use logic from V6 for robust comparison
-            if(files.length === 1) {
-                els.c1File.value = files[0]; populateAxesComp(els.c1X, els.c1Y, files[0]);
-                updateCompareChart(1);
-            } else if(files.length > 1) {
-                els.c1File.value = files[0]; populateAxesComp(els.c1X, els.c1Y, files[0]); updateCompareChart(1);
-                els.c2File.value = files[1]; populateAxesComp(els.c2X, els.c2Y, files[1]); updateCompareChart(2);
-            }
+            if(files.length === 0) return;
+            // populate dropdowns
+            [els.c1File, els.c2File].forEach(s => { s.innerHTML=''; files.forEach(f=>s.add(new Option(f,f))) });
             
-            [els.c1File, els.c1X, els.c1Y, els.c1Type].forEach(e => e.onchange = () => updateCompareChart(1));
-            [els.c2File, els.c2X, els.c2Y, els.c2Type].forEach(e => e.onchange = () => updateCompareChart(2));
+            // Set defaults
+            if(!els.c1File.value) els.c1File.value=files[0]; 
+            if(files.length>1 && (!els.c2File.value || els.c2File.value==els.c1File.value)) els.c2File.value=files[1];
+            
+            // Initial render
+            updateCompareChart(1); updateCompareChart(2);
+            
+            if(files.length < 2) { els.c2Wrapper.classList.add('blur-sm','pointer-events-none'); els.c2Overlay.classList.remove('hidden'); }
+            else { els.c2Wrapper.classList.remove('blur-sm','pointer-events-none'); els.c2Overlay.classList.add('hidden'); }
+            
+            // Events
+            [els.c1File, els.c1X, els.c1Y].forEach(e => e.onchange = () => updateCompareChart(1));
+            [els.c2File, els.c2X, els.c2Y].forEach(e => e.onchange = () => updateCompareChart(2));
+            els.c1File.onchange = (e) => { updateAxes(1, e.target.value); updateCompareChart(1); };
+            els.c2File.onchange = (e) => { updateAxes(2, e.target.value); updateCompareChart(2); };
         }
-        
-        function populateAxesComp(x, y, fname) {
-            const h = App.files[fname].headers;
-            x.innerHTML = ''; y.innerHTML = '';
-            h.forEach(k => { x.add(new Option(k,k)); y.add(new Option(k,k)); });
+
+        function updateAxes(id, fname) {
+            const x=els[`c${id}X`], y=els[`c${id}Y`]; x.innerHTML=''; y.innerHTML='';
+            App.files[fname].headers.forEach(h => { x.add(new Option(h,h)); y.add(new Option(h,h)); });
+            x.value = App.files[fname].headers[0]; y.value = App.files[fname].headers[1];
         }
 
         function updateCompareChart(id) {
-            const fname = els[`c${id}File`].value;
-            const xk = els[`c${id}X`].value;
-            const yk = els[`c${id}Y`].value;
-            const type = els[`c${id}Type`].value;
+            const fname = els[`c${id}File`].value; if(!fname) return;
             const f = App.files[fname];
+            const xVal = els[`c${id}X`].value || f.headers[0];
+            const yVal = els[`c${id}Y`].value || f.headers[1];
             
-            const ctx = document.getElementById(`c${id}-chart`).getContext('2d');
+            // Simple Render for Compare (No Pivot)
+            const lbs = f.filteredData.map(d=>d[xVal]);
+            const vals = f.filteredData.map(d=>parseFloat(String(d[yVal]).replace(/[^0-9.-]/g,''))||0);
+            
             if(App.charts[`c${id}`]) App.charts[`c${id}`].destroy();
-
-            const labs = f.filteredData.map(d => d[xk]);
-            const vals = f.filteredData.map(d => parseFloat(String(d[yk]).replace(/[^0-9.-]/g,""))||0);
-            
-            const color = id===1 ? '#3b82f6' : '#10b981';
-
+            const ctx = document.getElementById(`c${id}-chart`).getContext('2d');
             App.charts[`c${id}`] = new Chart(ctx, {
-                type: type,
-                data: {
-                    labels: labs,
-                    datasets: [{
-                        label: yk, data: vals,
-                        backgroundColor: type==='line'? color+'33' : color,
-                        borderColor: color, borderWidth: 1
-                    }]
-                },
-                options: { 
-                    responsive: true, maintainAspectRatio: false,
-                    plugins: { legend: { display: false } },
-                    scales: { x: { display: false }, y: { grid: { color: '#334155' } } }
-                }
+                type: 'bar',
+                data: { labels: lbs, datasets: [{ label: yVal, data: vals, backgroundColor: id==1?'#3b82f6':'#10b981' }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: {display:false} }, scales: { x: {display:false}, y: { grid: {color:'#334155'} } } }
             });
         }
 
-        // --- UTILS ---
-        function triggerUpload() { els.input.click(); }
-        
         function downloadChart(id, name) {
-            const c = document.getElementById(id);
-            const link = document.createElement('a');
-            link.download = `${name}_${Date.now()}.png`;
-            link.href = c.toDataURL('image/png');
-            link.click();
+            const c = document.getElementById(id); const a = document.createElement('a');
+            const t = document.createElement('canvas'); t.width=c.width; t.height=c.height;
+            const x = t.getContext('2d'); x.fillStyle='#0f172a'; x.fillRect(0,0,t.width,t.height); x.drawImage(c,0,0);
+            a.download = `${name}_${Date.now()}.png`; a.href=t.toDataURL(); a.click();
         }
 
         function downloadCombined() {
-            // Simple screenshot logic for compare
-            const c1 = document.getElementById('c1-chart');
-            const c2 = document.getElementById('c2-chart');
-            const cvs = document.createElement('canvas');
-            cvs.width = c1.width + c2.width + 40; cvs.height = c1.height + 60;
-            const x = cvs.getContext('2d');
-            x.fillStyle = "#0f172a"; x.fillRect(0,0,cvs.width, cvs.height);
-            x.drawImage(c1, 20, 30); x.drawImage(c2, c1.width+40, 30);
-            x.fillStyle = "white"; x.font = "20px sans-serif"; x.fillText("Comparison Report", 20, 20);
-            const l = document.createElement('a'); l.download = "Comparison.png"; l.href = cvs.toDataURL(); l.click();
+            const c1=document.getElementById('c1-chart'), c2=document.getElementById('c2-chart');
+            const t=document.createElement('canvas'); t.width=c1.width+c2.width+40; t.height=Math.max(c1.height,c2.height)+40;
+            const x=t.getContext('2d'); x.fillStyle='#0f172a'; x.fillRect(0,0,t.width,t.height); x.drawImage(c1,20,20); x.drawImage(c2,c1.width+40,20);
+            const a=document.createElement('a'); a.download=`Combined_${Date.now()}.png`; a.href=t.toDataURL(); a.click();
         }
     </script>
 </body>
