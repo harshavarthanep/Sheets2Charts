@@ -3,246 +3,262 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DataViz Ultimate | Enterprise Local Analytics</title>
+    <title>DataViz Pro V8 | Enterprise Analytics</title>
     
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
 
     <style>
-        :root { --glass-bg: rgba(15, 23, 42, 0.7); --glass-border: rgba(255, 255, 255, 0.08); }
-        body { font-family: 'Inter', sans-serif; background-color: #020617; color: #e2e8f0; overflow-x: hidden; }
+        /* --- THEME & UTILS --- */
+        body { font-family: 'Inter', sans-serif; background-color: #0f172a; color: #e2e8f0; overflow-x: hidden; }
         
         /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; height: 6px; }
-        ::-webkit-scrollbar-track { background: #0f172a; }
-        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: #475569; }
+        ::-webkit-scrollbar-track { background: #1e293b; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: #64748b; }
 
-        /* UI Components */
-        .glass-panel { 
-            background: #111827; 
-            border: 1px solid #1f2937; 
-            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
-        }
-        
-        .chart-container-main { height: 60vh; min-height: 500px; position: relative; }
-        .chart-container-compare { height: 40vh; min-height: 350px; position: relative; }
-        
-        /* Floating Managers */
-        .series-dropdown, .filter-dropdown {
-            position: fixed; background: #1e293b; border: 1px solid #475569; border-radius: 0.75rem;
-            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.7); z-index: 9999; 
-            animation: slideUp 0.15s ease-out; transform-origin: top left;
-        }
-        .series-dropdown { width: 340px; max-height: 500px; display: flex; flex-direction: column; }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+        /* Glass Panels */
+        .glass-panel { background: rgba(30, 41, 59, 0.75); backdrop-filter: blur(12px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .glass-header { background: rgba(15, 23, 42, 0.95); backdrop-filter: blur(10px); }
 
-        /* Toggles & Inputs */
-        .toggle-checkbox:checked { right: 0; border-color: #3b82f6; }
-        .toggle-checkbox:checked + .toggle-label { background-color: #3b82f6; }
+        /* Layout Heights */
+        .chart-area-single { height: 50vh; min-height: 450px; }
+        .chart-area-compare { height: 35vh; min-height: 250px; }
+        .table-scroll-body { max-height: 400px; overflow-y: auto; }
         
-        td[contenteditable="true"]:focus { background: #1e293b; outline: 2px solid #3b82f6; color: white; }
+        /* Dropdowns & Modals */
+        .dropdown-menu {
+            position: fixed; background: #1e293b; border: 1px solid #475569; border-radius: 0.5rem;
+            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5); z-index: 9999; animation: fadeIn 0.15s ease-out;
+        }
+        .series-dropdown { width: 340px; max-height: 450px; display: flex; flex-direction: column; }
+        .settings-dropdown { width: 200px; padding: 0.5rem; }
         
-        /* Utility */
-        .hidden { display: none !important; }
-        .flex { display: flex !important; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.98) translateY(-5px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+        
+        /* Interactive Elements */
+        td[contenteditable="true"]:focus { background: #1e293b; outline: 2px solid #3b82f6; border-radius: 4px; color: white; padding: 4px; }
+        td[contenteditable="true"]:hover { background: #1e293b; cursor: text; }
+        
+        .toggle-switch {
+            appearance: none; width: 32px; height: 18px; background: #475569; border-radius: 20px; position: relative; cursor: pointer; transition: 0.3s;
+        }
+        .toggle-switch::after {
+            content: ''; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; background: white; border-radius: 50%; transition: 0.3s;
+        }
+        .toggle-switch:checked { background: #3b82f6; }
+        .toggle-switch:checked::after { transform: translateX(14px); }
+
+        /* Loading Overlay */
+        #loading-overlay { display: none; }
+        #loading-overlay.active { display: flex; }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
-    <header class="bg-slate-950 border-b border-slate-800 h-16 flex items-center justify-between px-6 sticky top-0 z-[100] shadow-2xl">
+    <header class="glass-header border-b border-slate-700 h-16 flex items-center justify-between px-6 sticky top-0 z-[100] shadow-lg shrink-0">
         <div class="flex items-center gap-3">
-            <div class="bg-blue-600 text-white w-8 h-8 rounded flex items-center justify-center font-bold shadow-lg shadow-blue-500/20">
-                <i class="fa-solid fa-chart-simple"></i>
+            <div class="bg-gradient-to-br from-blue-600 to-indigo-600 text-white w-9 h-9 rounded-lg flex items-center justify-center shadow-lg shadow-blue-600/20 ring-1 ring-white/10">
+                <i class="fa-solid fa-chart-line"></i>
             </div>
-            <h1 class="text-lg font-bold tracking-tight text-slate-100 hidden sm:block">DataViz <span class="text-blue-500">Ultimate</span></h1>
+            <h1 class="text-xl font-bold tracking-tight text-white hidden sm:block">DataViz <span class="text-blue-500">Pro</span></h1>
         </div>
 
         <div class="flex items-center gap-4">
-            <div id="save-status" class="text-[10px] text-slate-500 font-mono uppercase tracking-widest hidden md:block"></div>
+            <div id="save-status" class="text-xs text-slate-500 font-mono hidden md:block opacity-0 transition-opacity"></div>
             
-            <button onclick="clearAllData()" class="text-slate-400 hover:text-red-400 text-xs flex items-center gap-2 transition px-3 py-1.5 rounded hover:bg-slate-900 border border-transparent hover:border-slate-800">
+            <button onclick="clearAllData()" class="text-slate-400 hover:text-red-400 text-xs flex items-center gap-2 transition mr-2 px-3 py-1.5 rounded hover:bg-slate-800" title="Clear all saved data">
                 <i class="fa-solid fa-trash"></i> <span class="hidden sm:inline">Reset App</span>
             </button>
 
             <input type="file" id="global-file-input" multiple accept=".xlsx, .xls, .csv" class="hidden">
             
-            <div class="bg-slate-900 p-1 rounded-lg border border-slate-800 flex shadow-inner">
-                <button id="btn-mode-single" class="px-4 py-1.5 text-xs font-semibold rounded transition-all flex items-center gap-2">
-                    <i class="fa-solid fa-layer-group"></i> Workspace
-                </button>
-                <button id="btn-mode-compare" class="px-4 py-1.5 text-xs font-semibold rounded transition-all text-slate-400 hover:text-white flex items-center gap-2">
-                    <i class="fa-solid fa-scale-balanced"></i> Compare
-                </button>
+            <div class="bg-slate-800 p-1 rounded-lg border border-slate-700 flex shadow-sm">
+                <button id="btn-mode-single" onclick="switchMode('single')" class="px-4 py-1.5 text-xs font-semibold rounded bg-blue-600 text-white shadow transition-all">Workspace</button>
+                <button id="btn-mode-compare" onclick="switchMode('compare')" class="px-4 py-1.5 text-xs font-semibold rounded text-slate-400 hover:text-white hover:bg-slate-700 transition-all">Compare</button>
             </div>
         </div>
     </header>
 
-    <main class="flex-grow p-4 md:p-6 w-full max-w-[1920px] mx-auto space-y-6 pb-20">
+    <main class="flex-grow p-4 md:p-6 w-full max-w-[1920px] mx-auto space-y-6 overflow-hidden pb-16">
 
-        <div id="view-single" class="flex flex-col gap-6 w-full">
+        <div id="view-single" class="flex flex-col gap-6 w-full h-full">
             
-            <div class="glass-panel p-4 rounded-xl flex flex-col lg:flex-row gap-6 lg:items-end justify-between relative overflow-visible z-50">
-                
-                <div class="flex flex-wrap gap-4 items-end">
-                    <div class="w-full sm:w-64">
-                        <label class="text-[10px] text-slate-500 font-bold uppercase mb-1.5 block tracking-wider">Active Dataset</label>
+            <div class="glass-panel p-4 rounded-xl flex flex-wrap gap-6 items-end justify-between shadow-xl relative z-20">
+                <div class="flex flex-wrap gap-4 items-end flex-grow">
+                    <div class="w-full md:w-64">
+                        <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider"><i class="fa-solid fa-database mr-1"></i> Active Dataset</label>
                         <div class="flex gap-2">
-                            <select id="s-file" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-white focus:border-blue-500 outline-none shadow-sm"></select>
-                            <button onclick="triggerUpload()" class="bg-blue-600 hover:bg-blue-500 text-white px-3 rounded border border-blue-500 transition shadow-lg shadow-blue-600/20" title="Upload">
+                            <select id="s-file" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white focus:border-blue-500 outline-none shadow-sm transition-colors cursor-pointer"></select>
+                            <button onclick="triggerUpload()" class="bg-blue-600 hover:bg-blue-500 text-white px-3.5 rounded border border-blue-500 transition shadow-lg shadow-blue-600/20 flex-shrink-0" title="Upload New File">
                                 <i class="fa-solid fa-plus"></i>
                             </button>
                         </div>
                     </div>
-
-                    <div class="w-full sm:w-48">
-                        <label class="text-[10px] text-slate-500 font-bold uppercase mb-1.5 block tracking-wider">X-Axis (Category)</label>
-                        <select id="s-xaxis" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-white outline-none focus:border-blue-500 cursor-pointer hover:bg-slate-800 transition"></select>
-                    </div>
-
-                    <div class="w-full sm:w-auto min-w-[200px]">
-                        <label class="text-[10px] text-slate-500 font-bold uppercase mb-1.5 block tracking-wider">Y-Axis (Values & Series)</label>
-                        <button id="btn-series-mgr" onclick="toggleSeriesManager(this)" class="w-full bg-slate-900 border border-slate-700 rounded px-3 py-2 text-xs text-white text-left flex justify-between items-center hover:bg-slate-800 transition shadow-sm">
-                            <span id="series-count-label" class="truncate">Select Data...</span>
-                            <i class="fa-solid fa-chevron-down text-slate-500 text-[10px]"></i>
-                        </button>
+                    
+                    <div class="flex gap-4 w-full md:w-auto flex-grow items-end">
+                         <div class="w-1/2 md:w-48">
+                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">X-Axis (Category)</label>
+                            <select id="s-xaxis" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white outline-none focus:border-blue-500 cursor-pointer"></select>
+                        </div>
+                        
+                        <div class="w-1/2 md:w-auto flex-grow relative">
+                            <label class="text-[10px] text-slate-400 font-bold uppercase mb-1.5 block tracking-wider">Y-Axis (Values & Series)</label>
+                            <button id="btn-series-mgr" onclick="toggleSeriesManager(this)" class="w-full bg-slate-800 border border-slate-600 rounded px-3 py-2 text-sm text-white text-left flex justify-between items-center hover:bg-slate-700 transition">
+                                <span id="series-count-label" class="truncate">Select Data...</span>
+                                <i class="fa-solid fa-layer-group text-blue-400 text-xs ml-2"></i>
+                            </button>
+                        </div>
                     </div>
                 </div>
 
-                <div class="flex flex-wrap items-center gap-3 bg-slate-900/50 p-2 rounded-lg border border-slate-800">
-                    <button id="btn-stack" onclick="toggleOption('stacked')" class="px-3 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white border border-transparent hover:border-slate-700 transition flex items-center gap-2">
-                        <i class="fa-solid fa-layer-group"></i> Stacked
+                <div class="flex gap-3 items-end">
+                    <button id="btn-chart-opts" onclick="toggleChartOptions(this)" class="bg-slate-800 hover:bg-slate-700 text-slate-300 px-4 py-2 rounded text-xs font-bold border border-slate-600 transition flex items-center gap-2">
+                        <i class="fa-solid fa-sliders"></i> Options
                     </button>
-                    <button id="btn-labels" onclick="toggleOption('labels')" class="px-3 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white border border-transparent hover:border-slate-700 transition flex items-center gap-2">
-                        <i class="fa-solid fa-tag"></i> Labels
-                    </button>
-                    <button id="btn-trend" onclick="toggleOption('trendline')" class="px-3 py-1.5 rounded text-xs font-medium text-slate-400 hover:text-white border border-transparent hover:border-slate-700 transition flex items-center gap-2">
-                        <i class="fa-solid fa-arrow-trend-up"></i> Trend
-                    </button>
-                    <div class="w-px h-6 bg-slate-700 mx-1"></div>
-                    <button onclick="downloadChart('s-chart', 'Analysis')" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded text-xs font-bold border border-slate-600 shadow-sm transition">
-                        <i class="fa-solid fa-download mr-1"></i> PNG
+                    <button onclick="downloadChart('s-chart', 'Analysis')" class="bg-slate-700 hover:bg-slate-600 text-white px-5 py-2 rounded text-xs font-bold uppercase border border-slate-600 transition flex items-center gap-2 shadow-lg">
+                        <i class="fa-solid fa-download"></i> PNG
                     </button>
                 </div>
             </div>
 
-            <div class="glass-panel rounded-xl p-4 shadow-2xl chart-container-main">
+            <div class="glass-panel rounded-xl p-4 shadow-xl chart-area-single relative group">
                 <canvas id="s-chart"></canvas>
+                <div id="chart-hint" class="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 text-slate-500 text-sm pointer-events-none hidden">
+                    Select X-Axis and Data Series to visualize
+                </div>
             </div>
 
-            <div class="glass-panel rounded-xl overflow-hidden flex flex-col shadow-xl">
-                <div class="bg-slate-900 p-3 border-b border-slate-800 flex justify-between items-center">
-                    <div class="flex items-center gap-2">
-                        <span class="text-xs font-bold text-slate-300 uppercase tracking-wider ml-2">Data Editor</span>
-                        <span class="text-[10px] bg-emerald-900/30 text-emerald-400 px-2 py-0.5 rounded border border-emerald-900/50">Live Sync</span>
+            <div class="glass-panel rounded-xl overflow-hidden border-t-4 border-blue-600 shadow-xl flex flex-col">
+                <div id="stats-bar" class="bg-slate-900 border-b border-slate-800 p-2 flex gap-4 overflow-x-auto text-xs text-slate-400 hidden">
                     </div>
-                    <span id="s-row-count" class="text-[10px] text-slate-500 font-mono"></span>
+
+                <div class="bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-center shrink-0">
+                    <div class="flex items-center gap-3">
+                        <h3 class="font-bold text-sm text-slate-200"><i class="fa-solid fa-table text-blue-500 mr-2"></i>Data Editor</h3>
+                        <span class="text-[10px] text-emerald-400 bg-emerald-400/10 px-2 py-0.5 rounded border border-emerald-400/20 font-medium">
+                            <i class="fa-solid fa-pen mr-1"></i>Editable
+                        </span>
+                    </div>
+                    <div class="flex items-center gap-3">
+                        <button onclick="downloadCSV()" class="text-xs text-blue-400 hover:text-blue-300 underline"><i class="fa-solid fa-file-csv mr-1"></i>Export CSV</button>
+                        <span id="s-row-count" class="text-xs text-slate-500 font-mono bg-slate-900 px-2 py-1 rounded">0 rows</span>
+                    </div>
                 </div>
-                <div class="overflow-x-auto bg-[#0b1120]">
+                
+                <div class="overflow-x-auto bg-slate-900/50">
                     <div class="table-scroll-body">
-                        <table class="w-full text-left text-xs text-slate-400 border-collapse">
-                            <thead class="bg-slate-950 text-[10px] uppercase sticky top-0 z-20 text-slate-300 font-bold shadow-md">
+                        <table class="w-full text-left text-sm text-slate-400 border-collapse">
+                            <thead class="bg-slate-900 text-xs uppercase sticky top-0 z-10 text-slate-300 shadow-md">
                                 <tr id="s-table-head"></tr>
                             </thead>
-                            <tbody id="s-table-body" class="divide-y divide-slate-800/50"></tbody>
+                            <tbody id="s-table-body" class="divide-y divide-slate-800"></tbody>
                         </table>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div id="view-compare" class="hidden flex-col gap-6 w-full">
-            <div class="flex justify-between items-center bg-slate-900 p-4 rounded-xl border border-slate-800 shadow-lg">
+        <div id="view-compare" class="hidden flex-col gap-6 w-full h-full">
+            <div class="flex justify-between items-center bg-slate-800 p-4 rounded-xl border border-slate-700 shadow-lg shrink-0">
                 <div class="flex items-center gap-2">
-                    <div class="w-2 h-8 bg-blue-600 rounded-full"></div>
-                    <span class="text-sm font-bold text-slate-200">Comparison Dashboard</span>
+                    <i class="fa-solid fa-scale-balanced text-emerald-500 text-lg ml-2"></i>
+                    <span class="text-sm font-bold text-slate-200">Comparison Mode</span>
                 </div>
-                <button onclick="downloadCombined()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-4 py-2 rounded text-xs font-bold uppercase shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
-                    <i class="fa-solid fa-camera"></i> Export Report
+                <button onclick="downloadCombined()" class="bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2 rounded text-xs font-bold uppercase shadow-lg shadow-emerald-600/20 transition flex items-center gap-2">
+                    <i class="fa-solid fa-camera"></i> Snapshot Report
                 </button>
             </div>
 
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                <div class="glass-panel rounded-xl p-4 flex flex-col gap-4 border-t-4 border-blue-500">
-                    <div class="flex gap-2">
-                        <select id="c1-file" class="bg-slate-900 text-xs w-full p-2 rounded border border-slate-700 text-white outline-none"></select>
-                        <select id="c1-xaxis" class="bg-slate-900 text-xs w-1/3 p-2 rounded border border-slate-700 text-white outline-none"></select>
-                        <select id="c1-yaxis" class="bg-slate-900 text-xs w-1/3 p-2 rounded border border-slate-700 text-white outline-none"></select>
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 relative flex-grow">
+                <div class="flex flex-col gap-4">
+                    <div class="glass-panel p-3 rounded-lg border-l-4 border-blue-500 shadow-lg flex flex-col gap-2 bg-slate-800/80">
+                         <div class="flex gap-2"><select id="c1-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600 text-white outline-none focus:border-blue-500"></select></div>
+                         <div class="flex gap-2">
+                             <select id="c1-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
+                             <select id="c1-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
+                        </div>
                     </div>
-                    <div class="chart-container-compare bg-slate-900/50 rounded-lg p-2 relative">
-                        <canvas id="c1-chart"></canvas>
-                    </div>
+                    <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800"><canvas id="c1-chart"></canvas></div>
                 </div>
 
-                <div class="glass-panel rounded-xl p-4 flex flex-col gap-4 border-t-4 border-emerald-500">
-                     <div class="flex gap-2">
-                        <select id="c2-file" class="bg-slate-900 text-xs w-full p-2 rounded border border-slate-700 text-white outline-none"></select>
-                        <select id="c2-xaxis" class="bg-slate-900 text-xs w-1/3 p-2 rounded border border-slate-700 text-white outline-none"></select>
-                        <select id="c2-yaxis" class="bg-slate-900 text-xs w-1/3 p-2 rounded border border-slate-700 text-white outline-none"></select>
-                    </div>
-                    <div class="chart-container-compare bg-slate-900/50 rounded-lg p-2 relative">
-                        <canvas id="c2-chart"></canvas>
-                        <div id="c2-overlay" class="hidden absolute inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center rounded-lg z-10">
-                            <div class="text-center">
-                                <p class="text-slate-400 text-sm mb-3">Select a second file to compare</p>
-                                <button onclick="triggerUpload()" class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold">Upload File</button>
+                <div class="relative flex flex-col gap-4">
+                    <div id="c2-wrapper" class="flex flex-col gap-4 transition-all duration-300 h-full">
+                        <div class="glass-panel p-3 rounded-lg border-l-4 border-emerald-500 shadow-lg flex flex-col gap-2 bg-slate-800/80">
+                             <div class="flex gap-2"><select id="c2-file" class="bg-slate-800 text-xs w-full p-2 rounded border border-slate-600 text-white outline-none focus:border-emerald-500"></select></div>
+                             <div class="flex gap-2">
+                                 <select id="c2-xaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
+                                 <select id="c2-yaxis" class="bg-slate-800 text-xs w-1/2 p-2 rounded border border-slate-600 text-white outline-none"></select>
                             </div>
+                        </div>
+                        <div class="glass-panel rounded-lg p-2 chart-area-compare relative bg-slate-800"><canvas id="c2-chart"></canvas></div>
+                    </div>
+                    
+                    <div id="c2-overlay" class="absolute inset-0 flex items-center justify-center z-10 hidden">
+                        <div class="bg-slate-900/90 p-6 rounded-xl border border-slate-600 text-center shadow-2xl backdrop-blur">
+                            <div class="w-12 h-12 bg-emerald-600 rounded-full flex items-center justify-center mx-auto mb-3 shadow-lg shadow-emerald-500/30">
+                                <i class="fa-solid fa-plus text-white"></i>
+                            </div>
+                            <p class="text-slate-300 mb-4 font-medium text-sm">Add dataset to compare</p>
+                            <button onclick="triggerUpload()" class="bg-white text-slate-900 hover:bg-slate-200 px-6 py-2 rounded-lg font-bold shadow-lg text-xs">Upload File B</button>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
     </main>
 
-    <footer class="bg-slate-950 border-t border-slate-800 py-6 text-center mt-auto">
-        <p class="text-slate-600 text-xs">Offline Secure Analytics &bull; Data stays on device</p>
+    <footer class="bg-slate-950 border-t border-slate-800 py-3 text-center mt-auto shrink-0 z-50">
+        <p class="text-slate-600 text-xs">
+            Persistent Analytics • <span class="text-slate-500">Local Browser Processing (Zero-Upload)</span>
+        </p>
     </footer>
 
-    <div id="welcome-modal" class="fixed inset-0 bg-black/80 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
-        <div class="bg-slate-900 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-800">
-            <div class="w-16 h-16 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-xl shadow-blue-500/20 rotate-3 hover:rotate-6 transition">
-                <i class="fa-solid fa-chart-line text-3xl text-white"></i>
-            </div>
-            <h2 class="text-2xl font-bold text-white mb-2">DataViz Ultimate</h2>
-            <p id="welcome-text" class="text-slate-400 mb-8 text-sm">Drag & drop excel files to visualize instantly.</p>
+    <div id="welcome-modal" class="fixed inset-0 bg-slate-950/90 z-[200] flex items-center justify-center p-4 backdrop-blur-sm transition-opacity duration-300">
+        <div class="bg-slate-900 p-8 rounded-2xl shadow-2xl max-w-md w-full text-center border border-slate-800 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-emerald-500"></div>
+            <div class="w-16 h-16 bg-slate-800 rounded-full flex items-center justify-center mx-auto mb-6 shadow-xl ring-1 ring-slate-700"><i class="fa-solid fa-database text-2xl text-blue-500"></i></div>
+            <h2 class="text-2xl font-bold text-white mb-2">Welcome Back</h2>
+            <p id="welcome-text" class="text-slate-400 mb-8 text-sm">Secure, Server-Free Analytics Workspace.</p>
             
             <div id="restore-section" class="hidden mb-6 p-4 bg-slate-800/50 rounded-xl border border-slate-700/50">
-                <p class="text-xs text-emerald-400 mb-3 font-semibold uppercase tracking-wider"><i class="fa-solid fa-database mr-1"></i> Session Found</p>
-                <div class="flex gap-3">
-                    <button onclick="restoreSession()" class="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white py-2.5 rounded-lg font-bold text-sm shadow-lg shadow-emerald-600/20 transition">Resume</button>
-                    <button onclick="clearAllData()" class="px-4 py-2.5 rounded-lg border border-slate-600 text-slate-400 hover:text-white hover:bg-slate-800 text-sm font-medium transition">Reset</button>
+                <div class="flex items-center justify-center gap-2 text-emerald-400 text-xs font-bold uppercase tracking-wide mb-3">
+                    <i class="fa-solid fa-clock-rotate-left"></i> Session Found
                 </div>
+                <button onclick="restoreSession()" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-4 py-3 rounded-lg font-bold text-sm mb-3 transition shadow-lg shadow-blue-600/20">Resume Dashboard</button>
+                <button onclick="clearAllData()" class="text-xs text-slate-500 hover:text-red-400 transition">Discard & Start New</button>
             </div>
-
-            <button id="upload-btn" onclick="triggerUpload()" class="w-full bg-blue-600 hover:bg-blue-500 text-white px-6 py-3.5 rounded-xl font-bold transition shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2 group">
-                <i class="fa-solid fa-upload group-hover:-translate-y-0.5 transition"></i> Open File
+            
+            <button id="upload-btn" onclick="triggerUpload()" class="w-full bg-slate-100 hover:bg-white text-slate-900 px-6 py-3 rounded-xl font-bold transition shadow-lg flex items-center justify-center gap-2 group">
+                <i class="fa-solid fa-upload group-hover:-translate-y-0.5 transition-transform"></i> Upload Excel / CSV
             </button>
         </div>
     </div>
 
-    <script>
-        /** * === ARCHITECTURE EXPLAINED ===
-         * 1. DB Layer: Uses IndexedDB to store massive Excel files (localstorage is too small).
-         * 2. State Layer: 'App.files' holds data. 'App.fileStates' holds UI config (selected X axis, series, etc) PER FILE.
-         * 3. View Layer: 'renderChart' uses Chart.js. 'renderTable' builds HTML.
-         * 4. Pivot Engine: 'getAggregatedData' handles the summing of rows for charts.
-         */
+    <div id="loading-overlay" class="fixed inset-0 bg-slate-950/80 z-[300] items-center justify-center flex-col gap-4 backdrop-blur-sm">
+        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500"></div>
+        <div class="text-blue-400 font-mono text-sm animate-pulse">Processing Data...</div>
+    </div>
 
-        const DB_NAME = 'DataVizUltimate_DB';
+    <script>
+        /** =========================================
+         * CORE: DATABASE & STATE MANAGEMENT
+         * ========================================= */
+        const DB_NAME = 'DataVizDB_V8';
         const STORE_NAME = 'files';
 
-        // --- DATABASE WRAPPER ---
         const dbPromise = new Promise((resolve, reject) => {
-            const req = indexedDB.open(DB_NAME, 3);
-            req.onupgradeneeded = (e) => {
-                if (!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME);
+            const request = indexedDB.open(DB_NAME, 2);
+            request.onupgradeneeded = (e) => { 
+                if(!e.target.result.objectStoreNames.contains(STORE_NAME)) e.target.result.createObjectStore(STORE_NAME); 
             };
-            req.onsuccess = (e) => resolve(e.target.result);
-            req.onerror = (e) => reject(e);
+            request.onsuccess = (e) => resolve(e.target.result);
+            request.onerror = (e) => reject(e);
         });
 
         async function dbSave(key, val) { const db=await dbPromise; const tx=db.transaction(STORE_NAME,'readwrite'); tx.objectStore(STORE_NAME).put(val,key); return new Promise(r=>tx.oncomplete=r); }
@@ -251,10 +267,17 @@
 
         // --- APP STATE ---
         const App = {
-            files: {},      // { 'filename': { rawData: [], filteredData: [], headers: [], filters: {} } }
-            fileStates: {}, // { 'filename': { xCol: 'Date', series: [config], options: {stacked:false...} } } <-- PERSISTENT STATE FIX
-            activeFile: null,
-            activeMode: 'single',
+            files: {}, 
+            activeFile: null, 
+            activeMode: 'single', // 'single' or 'compare'
+            // Workspace State (Preserves selections)
+            workspace: {
+                xAxis: null,
+                seriesConfig: [], // [{col, type, axis}]
+                options: { showValues: false, showTrendline: false, tension: 0.3 }
+            },
+            // Comparison State
+            compare: { c1File: null, c1X: null, c1Y: null, c2File: null, c2X: null, c2Y: null },
             charts: { single: null, c1: null, c2: null },
             dirty: false
         };
@@ -262,602 +285,648 @@
         const els = {
             input: document.getElementById('global-file-input'), modal: document.getElementById('welcome-modal'),
             restoreSec: document.getElementById('restore-section'), welcomeText: document.getElementById('welcome-text'), saveStatus: document.getElementById('save-status'),
-            // Single View
-            viewSingle: document.getElementById('view-single'), sFile: document.getElementById('s-file'), sX: document.getElementById('s-xaxis'),
+            viewSingle: document.getElementById('view-single'), viewCompare: document.getElementById('view-compare'),
+            btnSingle: document.getElementById('btn-mode-single'), btnCompare: document.getElementById('btn-mode-compare'),
+            loading: document.getElementById('loading-overlay'),
+            // Single
+            sFile: document.getElementById('s-file'), sX: document.getElementById('s-xaxis'),
             sThead: document.getElementById('s-table-head'), sTbody: document.getElementById('s-table-body'), sCount: document.getElementById('s-row-count'),
-            seriesLabel: document.getElementById('series-count-label'),
-            btnStack: document.getElementById('btn-stack'), btnLabels: document.getElementById('btn-labels'), btnTrend: document.getElementById('btn-trend'),
-            // Compare View
-            viewCompare: document.getElementById('view-compare'),
+            seriesLabel: document.getElementById('series-count-label'), statsBar: document.getElementById('stats-bar'),
+            // Compare
             c1File: document.getElementById('c1-file'), c1X: document.getElementById('c1-xaxis'), c1Y: document.getElementById('c1-yaxis'),
-            c2File: document.getElementById('c2-file'), c2X: document.getElementById('c2-xaxis'), c2Y: document.getElementById('c2-yaxis'), c2Overlay: document.getElementById('c2-overlay'),
-            // Buttons
-            btnSingle: document.getElementById('btn-mode-single'), btnCompare: document.getElementById('btn-mode-compare')
+            c2File: document.getElementById('c2-file'), c2X: document.getElementById('c2-xaxis'), c2Y: document.getElementById('c2-yaxis'),
+            c2Wrapper: document.getElementById('c2-wrapper'), c2Overlay: document.getElementById('c2-overlay'),
         };
 
-        // --- INITIALIZATION ---
-        (async function boot() {
-            const saved = await dbGet('appState');
-            if(saved && saved.files && Object.keys(saved.files).length > 0) {
+        /** =========================================
+         * INITIALIZATION & NAVIGATION
+         * ========================================= */
+        (async function init() {
+            // Register Chart Plugin
+            Chart.register(ChartDataLabels);
+            
+            const savedState = await dbGet('appState');
+            if(savedState && savedState.files && Object.keys(savedState.files).length > 0) {
                 els.restoreSec.classList.remove('hidden'); 
-                els.welcomeText.innerText = `Found ${Object.keys(saved.files).length} datasets from previous session.`;
+                els.welcomeText.innerText = `Found ${Object.keys(savedState.files).length} datasets from previous session.`; 
                 document.getElementById('upload-btn').classList.add('hidden');
             }
         })();
 
         async function restoreSession() {
-            const saved = await dbGet('appState');
-            if(saved) {
-                App.files = saved.files;
-                App.fileStates = saved.fileStates || {}; // Load persistent UI states
-                App.activeFile = saved.activeFile;
-                // Rehydrate Sets (JSON loses Set type)
-                Object.values(App.files).forEach(f => { 
-                    Object.keys(f.filters).forEach(c => f.filters[c] = new Set(f.filters[c])); 
-                });
-                els.modal.style.display = 'none';
-                initUI();
-            }
+            els.loading.classList.add('active');
+            try {
+                const saved = await dbGet('appState');
+                if(saved) {
+                    App.files = saved.files;
+                    App.activeFile = saved.activeFile;
+                    App.workspace = saved.workspace || App.workspace;
+                    App.compare = saved.compare || App.compare;
+                    
+                    // Rehydrate Sets (JSON loses Set type)
+                    Object.values(App.files).forEach(f => { 
+                        Object.keys(f.columnFilters).forEach(col => f.columnFilters[col] = new Set(f.columnFilters[col])); 
+                    });
+
+                    els.modal.style.display = 'none';
+                    populateFileSelects();
+                    switchMode(saved.activeMode || 'single', true); // true = force refresh
+                }
+            } catch(e) { console.error(e); alert("Error restoring session."); }
+            els.loading.classList.remove('active');
         }
 
-        function clearAllData() { if(confirm("This will wipe all data. Continue?")) { dbClear(); location.reload(); } }
-
-        // --- EVENT HANDLERS ---
-        els.input.addEventListener('change', handleUpload);
-        els.sFile.addEventListener('change', (e) => loadSingleFile(e.target.value));
-        els.sX.addEventListener('change', (e) => { 
-            // Save state immediately when X changes
-            if(App.fileStates[App.activeFile]) App.fileStates[App.activeFile].xCol = e.target.value; 
-            updateSingleChart(); 
-            App.dirty = true; saveState();
-        });
-        
-        // Mode Switching
-        els.btnSingle.addEventListener('click', () => switchMode('single'));
-        els.btnCompare.addEventListener('click', () => switchMode('compare'));
-
-        // Compare Events
-        [els.c1File, els.c1X, els.c1Y].forEach(e => e.addEventListener('change', () => updateCompareChart(1)));
-        [els.c2File, els.c2X, els.c2Y].forEach(e => e.addEventListener('change', () => updateCompareChart(2)));
-        els.c1File.addEventListener('change', (e) => { populateAxes(1, e.target.value); updateCompareChart(1); });
-        els.c2File.addEventListener('change', (e) => { populateAxes(2, e.target.value); updateCompareChart(2); });
-
-        // Global Click Listener (Dropdowns)
-        document.addEventListener('click', (e) => {
-            if(!e.target.closest('.filter-dropdown') && !e.target.closest('.filter-trigger')) document.querySelectorAll('.filter-dropdown').forEach(d=>d.remove());
-            if(!e.target.closest('.series-dropdown') && !e.target.closest('#btn-series-mgr')) document.querySelectorAll('.series-dropdown').forEach(d=>d.remove());
-        });
-
-        // --- FILE HANDLING ---
+        function clearAllData() { if(confirm("This will wipe all data from the browser. Continue?")) { dbClear(); location.reload(); } }
         function triggerUpload() { els.input.click(); }
 
-        function handleUpload(e) {
+        els.input.addEventListener('change', async (e) => {
             const files = Array.from(e.target.files);
             if (!files.length) return;
+            
+            els.loading.classList.add('active');
             els.modal.style.display = 'none';
-            let processed = 0;
-            files.forEach(f => {
-                const reader = new FileReader();
-                reader.onload = (ev) => {
-                    const wb = XLSX.read(new Uint8Array(ev.target.result), { type: 'array' });
-                    const sheet = wb.Sheets[wb.SheetNames[0]];
-                    const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+
+            // Process files
+            for(const f of files) {
+                try {
+                    const arrayBuffer = await f.arrayBuffer();
+                    const wb = XLSX.read(arrayBuffer, { type: 'array' });
+                    const json = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "" });
                     
                     if(json.length) {
-                        const headers = Object.keys(json[0]);
-                        // Init Data
-                        App.files[f.name] = { rawData: json, filteredData: json, headers: headers, filters: {} };
-                        // Init UI State (Auto-Guess)
-                        const xGuess = headers.find(h=>/date|month|year|category|name/i.test(h)) || headers[0];
-                        const yGuess = headers.find(h=>/sales|total|amount|val|profit/i.test(h)) || headers[1];
-                        App.fileStates[f.name] = {
-                            xCol: xGuess,
-                            series: [{ col: yGuess, type: 'bar', axis: 'left', color: '#3b82f6' }],
-                            options: { stacked: false, labels: false, trendline: false }
+                        App.files[f.name] = { 
+                            rawData: json, filteredData: json, 
+                            headers: Object.keys(json[0]), columnFilters: {} 
                         };
                         if(!App.activeFile) App.activeFile = f.name;
-                        App.dirty = true;
                     }
-                    if(++processed === files.length) { initUI(); saveState(); }
-                };
-                reader.readAsArrayBuffer(f);
-            });
-            e.target.value = '';
-        }
+                } catch(err) { console.error("File parse error", err); }
+            }
 
-        function initUI() {
             populateFileSelects();
-            if(App.activeMode === 'single') loadSingleFile(App.activeFile); else setupCompareLayout();
-        }
+            if(files.length > 0) {
+                // If this is the first upload, init the workspace
+                if(!App.workspace.xAxis) initWorkspaceDefaults(App.activeFile);
+                loadSingleView(); // Refresh view
+                saveState();
+            }
+            els.input.value = '';
+            els.loading.classList.remove('active');
+        });
 
         function populateFileSelects() {
             const names = Object.keys(App.files);
             [els.sFile, els.c1File, els.c2File].forEach(sel => {
                 const prev = sel.value; sel.innerHTML = '';
                 names.forEach(n => sel.add(new Option(n, n)));
-                if(names.includes(prev)) sel.value = prev; else if(App.activeFile) sel.value = App.activeFile;
+                if(names.includes(prev)) sel.value = prev;
             });
+            // Set Workspace File
+            if(App.activeFile && names.includes(App.activeFile)) els.sFile.value = App.activeFile;
         }
 
-        function switchMode(mode) {
+        function switchMode(mode, force = false) {
+            if(App.activeMode === mode && !force) return;
             App.activeMode = mode;
+            
             if(mode === 'single') {
-                els.viewSingle.classList.remove('hidden'); els.viewCompare.classList.add('hidden');
-                els.btnSingle.classList.replace('text-slate-400', 'text-white'); els.btnSingle.classList.add('bg-blue-600', 'shadow-md'); els.btnSingle.classList.remove('hover:text-white');
-                els.btnCompare.classList.replace('text-white', 'text-slate-400'); els.btnCompare.classList.remove('bg-blue-600', 'shadow-md'); els.btnCompare.classList.add('hover:text-white');
-                if(App.activeFile) loadSingleFile(App.activeFile); // Reloads state correctly
+                els.viewSingle.classList.remove('hidden'); els.viewCompare.classList.add('hidden'); els.viewCompare.classList.remove('flex');
+                els.btnSingle.classList.replace('text-slate-400', 'text-white'); els.btnSingle.classList.add('bg-blue-600');
+                els.btnCompare.classList.replace('text-white', 'text-slate-400'); els.btnCompare.classList.remove('bg-blue-600');
+                loadSingleView();
             } else {
                 els.viewSingle.classList.add('hidden'); els.viewCompare.classList.remove('hidden'); els.viewCompare.classList.add('flex');
-                els.btnCompare.classList.replace('text-slate-400', 'text-white'); els.btnCompare.classList.add('bg-blue-600', 'shadow-md'); els.btnCompare.classList.remove('hover:text-white');
-                els.btnSingle.classList.replace('text-white', 'text-slate-400'); els.btnSingle.classList.remove('bg-blue-600', 'shadow-md'); els.btnSingle.classList.add('hover:text-white');
-                setupCompareLayout();
+                els.btnCompare.classList.replace('text-slate-400', 'text-white'); els.btnCompare.classList.add('bg-blue-600');
+                els.btnSingle.classList.replace('text-white', 'text-slate-400'); els.btnSingle.classList.remove('bg-blue-600');
+                loadCompareView();
             }
             saveState();
         }
 
         async function saveState() {
-            if(!App.dirty) return;
-            els.saveStatus.innerText = "SAVING...";
-            const serializableFiles = JSON.parse(JSON.stringify(App.files));
-            // Convert Sets to Arrays
+            els.saveStatus.style.opacity = '1'; els.saveStatus.innerText = "Saving...";
+            
+            // Serialize Sets
+            const serializable = JSON.parse(JSON.stringify(App.files));
             Object.keys(App.files).forEach(f => {
-                Object.keys(App.files[f].filters).forEach(c => serializableFiles[f].filters[c] = Array.from(App.files[f].filters[c]));
+                Object.keys(App.files[f].columnFilters).forEach(c => serializable[f].columnFilters[c] = Array.from(App.files[f].columnFilters[c]));
+            });
+
+            await dbSave('appState', { 
+                files: serializable, activeFile: App.activeFile, activeMode: App.activeMode,
+                workspace: App.workspace, compare: App.compare 
             });
             
-            await dbSave('appState', {
-                files: serializableFiles,
-                fileStates: App.fileStates, // Save UI Configs
-                activeFile: App.activeFile,
-                activeMode: App.activeMode
-            });
-            
-            App.dirty = false; els.saveStatus.innerText = "SAVED"; setTimeout(()=>els.saveStatus.innerText="", 2000);
+            App.dirty = false;
+            els.saveStatus.innerText = "Saved";
+            setTimeout(() => els.saveStatus.style.opacity = '0', 2000);
         }
 
-        // --- SINGLE VIEW LOGIC ---
-        function loadSingleFile(fname) {
-            if(!App.files[fname]) return;
-            App.activeFile = fname; els.sFile.value = fname;
-            
+        /** =========================================
+         * VIEW LOGIC: WORKSPACE (SINGLE)
+         * ========================================= */
+        function initWorkspaceDefaults(fname) {
             const f = App.files[fname];
-            const state = App.fileStates[fname];
+            if(!f) return;
+            
+            // Guess X Axis (Date/Name)
+            const x = f.headers.find(h => h.match(/date|month|year|name|cat/i)) || f.headers[0];
+            App.workspace.xAxis = x;
+            
+            // Guess Y Axis (First Number)
+            const y = f.headers.find(h => h.match(/sales|total|amt|val|rev|profit/i)) || f.headers[1];
+            if(y) App.workspace.seriesConfig = [{ col: y, type: 'bar', axis: 'left' }];
+        }
 
-            // Restore X Axis
+        function loadSingleView() {
+            if(!App.activeFile || !App.files[App.activeFile]) return;
+            const fname = App.activeFile;
+            const f = App.files[fname];
+
+            // 1. Setup Controls (Restore State)
+            els.sFile.value = fname;
+            
             els.sX.innerHTML = '';
             f.headers.forEach(h => els.sX.add(new Option(h, h)));
-            els.sX.value = state.xCol;
-
-            // Restore Toggles
-            updateToggleButtons(state.options);
-
-            // Render
+            if(App.workspace.xAxis && f.headers.includes(App.workspace.xAxis)) els.sX.value = App.workspace.xAxis;
+            
+            // 2. Render Data
             renderHeaders(fname, els.sThead, 'single');
             renderTable(els.sTbody, f.filteredData, f.headers, els.sCount, true);
+            
+            // 3. Render Chart
             updateSingleChart();
         }
 
-        function updateToggleButtons(opts) {
-            const setBtn = (btn, active) => {
-                if(active) { btn.classList.add('bg-blue-600', 'text-white', 'border-blue-500'); btn.classList.remove('text-slate-400'); }
-                else { btn.classList.remove('bg-blue-600', 'text-white', 'border-blue-500'); btn.classList.add('text-slate-400'); }
-            };
-            setBtn(els.btnStack, opts.stacked);
-            setBtn(els.btnLabels, opts.labels);
-            setBtn(els.btnTrend, opts.trendline);
-        }
-
-        window.toggleOption = (opt) => {
-            const state = App.fileStates[App.activeFile].options;
-            state[opt] = !state[opt];
-            updateToggleButtons(state);
+        // Listeners
+        els.sFile.addEventListener('change', (e) => {
+            App.activeFile = e.target.value;
+            initWorkspaceDefaults(App.activeFile); // Reset defaults for new file
+            loadSingleView();
+            saveState();
+        });
+        els.sX.addEventListener('change', (e) => {
+            App.workspace.xAxis = e.target.value;
             updateSingleChart();
-            App.dirty = true; saveState();
-        };
+            saveState();
+        });
 
-        // --- SERIES MANAGER (POPUP) ---
+        // --- SERIES MANAGER UI ---
         window.toggleSeriesManager = (btn) => {
             const existing = document.querySelector('.series-dropdown');
             if(existing) return existing.remove();
-
-            const f = App.files[App.activeFile];
-            const state = App.fileStates[App.activeFile];
             
             const dd = document.createElement('div');
-            dd.className = 'series-dropdown p-4';
-            
-            dd.innerHTML = `
-                <div class="flex justify-between items-center mb-3 border-b border-slate-700 pb-2">
-                    <span class="text-xs font-bold text-slate-400 uppercase">Series Configuration</span>
-                    <span class="text-[10px] text-blue-500 cursor-pointer" onclick="resetSeries()">Reset Defaults</span>
+            dd.className = 'series-dropdown dropdown-menu p-4 text-slate-300';
+            dd.onclick = (e) => e.stopPropagation(); // Prevent closing when clicking inside
+
+            const f = App.files[App.activeFile];
+            let html = `
+                <div class="font-bold text-xs uppercase text-slate-500 mb-2 flex justify-between items-center">
+                    <span>Available Data Columns</span>
+                    <button onclick="document.querySelector('.series-dropdown').remove()" class="text-slate-500 hover:text-white"><i class="fa-solid fa-times"></i></button>
                 </div>
-                <div class="overflow-y-auto pr-1 flex-grow space-y-2 custom-scroll">
-                    ${f.headers.map(h => {
-                        const cfg = state.series.find(s => s.col === h);
-                        return `
-                        <div class="bg-slate-800/50 p-2 rounded border border-slate-700 ${cfg ? 'border-l-2 border-l-blue-500' : ''}">
-                            <div class="flex items-center justify-between mb-1">
-                                <label class="flex items-center gap-2 cursor-pointer text-xs text-slate-200 truncate w-32">
-                                    <input type="checkbox" onchange="updateSeries('${h}', this.checked)" ${cfg ? 'checked' : ''} class="accent-blue-600 rounded">
-                                    <span class="truncate" title="${h}">${h}</span>
-                                </label>
-                                ${cfg ? `<input type="color" value="${cfg.color}" onchange="updateSeriesColor('${h}', this.value)" class="w-5 h-5 rounded bg-transparent border-0 cursor-pointer">` : ''}
-                            </div>
-                            ${cfg ? `
-                            <div class="flex items-center justify-between gap-2 mt-2 pt-2 border-t border-slate-700/50">
-                                <select onchange="updateSeriesType('${h}', this.value)" class="bg-slate-900 text-[10px] text-slate-400 rounded px-1 py-0.5 border border-slate-700 outline-none w-16">
-                                    <option value="bar" ${cfg.type=='bar'?'selected':''}>Bar</option>
-                                    <option value="line" ${cfg.type=='line'?'selected':''}>Line</option>
-                                    <option value="area" ${cfg.type=='area'?'selected':''}>Area</option>
-                                </select>
-                                <label class="flex items-center gap-1 text-[10px] text-slate-500 cursor-pointer">
-                                    <input type="checkbox" onchange="updateSeriesAxis('${h}', this.checked)" ${cfg.axis=='right'?'checked':''} class="accent-orange-500"> Right Axis
-                                </label>
-                            </div>` : ''}
-                        </div>`;
-                    }).join('')}
-                </div>
-            `;
+                <div class="overflow-y-auto flex-grow space-y-2 pr-2 custom-scroll" style="max-height: 300px">`;
+
+            f.headers.forEach(h => {
+                const cfg = App.workspace.seriesConfig.find(c => c.col === h);
+                const isSel = !!cfg;
+                html += `
+                <div class="flex flex-col bg-slate-800 rounded border ${isSel ? 'border-blue-500/50' : 'border-slate-700'} p-2 gap-2 transition-colors">
+                    <div class="flex items-center justify-between">
+                        <label class="flex items-center gap-2 cursor-pointer text-sm font-medium text-white truncate w-32">
+                            <input type="checkbox" onchange="updateSeriesConfig('${h}', this.checked)" ${isSel ? 'checked' : ''} class="accent-blue-500 w-4 h-4">
+                            <span class="truncate" title="${h}">${h}</span>
+                        </label>
+                        ${isSel ? `
+                            <select onchange="updateSeriesType('${h}', this.value)" class="bg-slate-900 border border-slate-600 text-[10px] rounded px-1 py-0.5 outline-none hover:border-blue-500">
+                                <option value="bar" ${cfg.type=='bar'?'selected':''}>Bar</option>
+                                <option value="line" ${cfg.type=='line'?'selected':''}>Line</option>
+                                <option value="area" ${cfg.type=='area'?'selected':''}>Area</option>
+                            </select>
+                        ` : ''}
+                    </div>
+                    ${isSel ? `
+                    <div class="flex items-center justify-between border-t border-slate-700 pt-2 mt-1">
+                        <span class="text-[10px] text-slate-500 uppercase font-bold tracking-wider">Secondary Axis</span>
+                        <label class="relative inline-flex items-center cursor-pointer">
+                            <input type="checkbox" class="sr-only peer" onchange="updateSeriesAxis('${h}', this.checked)" ${cfg.axis=='right'?'checked':''}>
+                            <div class="w-7 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                    </div>` : ''}
+                </div>`;
+            });
+            html += `</div>`;
+            dd.innerHTML = html;
+
             document.body.appendChild(dd);
-            
-            // Positioning
             const rect = btn.getBoundingClientRect();
             dd.style.left = `${rect.left}px`;
             dd.style.top = `${rect.bottom + 8}px`;
             
-            // Boundary check
-            if(window.innerHeight - rect.bottom < 400) {
-                 dd.style.top = 'auto'; dd.style.bottom = `${window.innerHeight - rect.top + 8}px`;
-                 dd.style.transformOrigin = 'bottom left';
-            }
+            // Listener to close
+            setTimeout(() => document.addEventListener('click', closeSeriesMenu), 0);
         };
 
-        window.resetSeries = () => {
-             const h = App.files[App.activeFile].headers;
-             const y = h.find(x=>/sales|total|val/i.test(x)) || h[1];
-             App.fileStates[App.activeFile].series = [{ col: y, type: 'bar', axis: 'left', color: '#3b82f6' }];
-             refreshSeriesUI();
-        };
-
-        window.updateSeries = (col, checked) => {
-            const state = App.fileStates[App.activeFile];
-            if(checked) {
-                const color = `hsla(${(state.series.length * 137) % 360}, 70%, 55%, 1)`;
-                state.series.push({ col: col, type: 'bar', axis: 'left', color: color });
-            } else {
-                state.series = state.series.filter(s => s.col !== col);
+        function closeSeriesMenu(e) {
+            if(!e.target.closest('.series-dropdown') && !e.target.closest('#btn-series-mgr')) {
+                const el = document.querySelector('.series-dropdown');
+                if(el) el.remove();
+                document.removeEventListener('click', closeSeriesMenu);
             }
+        }
+
+        window.updateSeriesConfig = (col, checked) => {
+            if(checked) App.workspace.seriesConfig.push({ col: col, type: 'bar', axis: 'left' });
+            else App.workspace.seriesConfig = App.workspace.seriesConfig.filter(c => c.col !== col);
             refreshSeriesUI();
         };
-
         window.updateSeriesType = (col, type) => {
-            App.fileStates[App.activeFile].series.find(s=>s.col===col).type = type;
+            const c = App.workspace.seriesConfig.find(x => x.col === col); if(c) c.type = type;
             refreshSeriesUI();
         };
-        window.updateSeriesAxis = (col, right) => {
-            App.fileStates[App.activeFile].series.find(s=>s.col===col).axis = right ? 'right' : 'left';
+        window.updateSeriesAxis = (col, isRight) => {
+            const c = App.workspace.seriesConfig.find(x => x.col === col); if(c) c.axis = isRight?'right':'left';
             refreshSeriesUI();
-        };
-        window.updateSeriesColor = (col, color) => {
-             App.fileStates[App.activeFile].series.find(s=>s.col===col).color = color;
-             updateSingleChart(); App.dirty=true;
         };
 
         function refreshSeriesUI() {
-            const btn = document.querySelector('.series-dropdown');
-            if(btn) { btn.remove(); toggleSeriesManager(document.getElementById('btn-series-mgr')); }
-            updateSingleChart(); App.dirty = true; saveState();
+            // Refresh Chart & Save
+            updateSingleChart();
+            saveState();
+            // Refresh Menu (Hack to keep it open and updated)
+            const menu = document.querySelector('.series-dropdown');
+            if(menu) {
+                const scrollPos = menu.querySelector('.custom-scroll').scrollTop;
+                menu.remove();
+                toggleSeriesManager(document.getElementById('btn-series-mgr'));
+                document.querySelector('.series-dropdown .custom-scroll').scrollTop = scrollPos;
+            }
         }
 
-        // --- CHART RENDERING (PIVOT + OPTIONS) ---
-        function updateSingleChart() {
-            const fname = App.activeFile;
-            if(!fname) return;
-            const f = App.files[fname];
-            const state = App.fileStates[fname];
-            const seriesList = state.series;
+        // --- CHART OPTIONS UI ---
+        window.toggleChartOptions = (btn) => {
+            const existing = document.querySelector('.settings-dropdown'); if(existing) return existing.remove();
             
-            if(!seriesList.length) { els.seriesLabel.innerText = "No Data Selected"; return; }
-            els.seriesLabel.innerText = `${seriesList.length} Series Active`;
+            const dd = document.createElement('div');
+            dd.className = 'dropdown-menu settings-dropdown';
+            dd.innerHTML = `
+                <div class="flex items-center justify-between p-2">
+                    <span class="text-xs text-slate-300">Show Values</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="sr-only peer" onchange="toggleOpt('showValues', this.checked)" ${App.workspace.options.showValues?'checked':''}>
+                        <div class="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+                <div class="flex items-center justify-between p-2 border-t border-slate-700">
+                    <span class="text-xs text-slate-300">Trendline</span>
+                    <label class="relative inline-flex items-center cursor-pointer">
+                        <input type="checkbox" class="sr-only peer" onchange="toggleOpt('showTrendline', this.checked)" ${App.workspace.options.showTrendline?'checked':''}>
+                        <div class="w-8 h-4 bg-slate-700 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-3 after:w-3 after:transition-all peer-checked:bg-blue-600"></div>
+                    </label>
+                </div>
+            `;
+            document.body.appendChild(dd);
+            const rect = btn.getBoundingClientRect(); dd.style.left = `${rect.left}px`; dd.style.top = `${rect.bottom+8}px`;
+            
+            setTimeout(() => document.addEventListener('click', function close(e) {
+                if(!e.target.closest('.settings-dropdown') && !e.target.closest('#btn-chart-opts')) {
+                    dd.remove(); document.removeEventListener('click', close);
+                }
+            }), 0);
+        };
+        
+        window.toggleOpt = (key, val) => { App.workspace.options[key] = val; updateSingleChart(); saveState(); };
 
-            // 1. Pivot Data
-            const pivot = {};
+        // --- SINGLE CHART RENDERING ---
+        function updateSingleChart() {
+            const f = App.files[App.activeFile];
+            if(!f || !App.workspace.xAxis || !App.workspace.seriesConfig.length) {
+                if(App.charts.single) App.charts.single.destroy();
+                document.getElementById('chart-hint').classList.remove('hidden');
+                els.seriesLabel.innerText = "Select Data...";
+                els.statsBar.classList.add('hidden');
+                return;
+            }
+            
+            document.getElementById('chart-hint').classList.add('hidden');
+            els.seriesLabel.innerText = `${App.workspace.seriesConfig.length} Series Active`;
+
+            // PIVOT/AGGREGATION ENGINE
+            const xCol = App.workspace.xAxis;
+            const pivotData = {};
+            
             f.filteredData.forEach(row => {
-                const xVal = row[state.xCol] || "(Empty)";
-                if(!pivot[xVal]) pivot[xVal] = { _count: 0 };
+                const key = row[xCol] || "(Blank)";
+                if(!pivotData[key]) pivotData[key] = { _count: 0 };
+                pivotData[key]._count++;
                 
-                seriesList.forEach(s => {
-                    let val = row[s.col];
+                App.workspace.seriesConfig.forEach(cfg => {
+                    let val = row[cfg.col];
                     if(typeof val === 'string') val = parseFloat(val.replace(/[^0-9.-]+/g,""));
                     if(isNaN(val)) val = 0;
-                    if(!pivot[xVal][s.col]) pivot[xVal][s.col] = 0;
-                    pivot[xVal][s.col] += val;
+                    if(!pivotData[key][cfg.col]) pivotData[key][cfg.col] = 0;
+                    pivotData[key][cfg.col] += val;
                 });
             });
 
-            // 2. Prepare Datasets
-            const labels = Object.keys(pivot); // Add sorting logic here if needed
-            const datasets = seriesList.map(s => {
-                const data = labels.map(l => pivot[l][s.col]);
-                const isLine = s.type === 'line' || s.type === 'area';
+            const labels = Object.keys(pivotData);
+            
+            // Build Datasets
+            const datasets = App.workspace.seriesConfig.map((cfg, idx) => {
+                const data = labels.map(l => pivotData[l][cfg.col]);
+                const hue = (idx * 137) % 360;
+                const isLine = cfg.type === 'line' || cfg.type === 'area';
                 
                 return {
-                    label: s.col,
+                    label: cfg.col,
                     data: data,
-                    type: s.type === 'area' ? 'line' : s.type,
-                    fill: s.type === 'area',
-                    backgroundColor: isLine ? s.color + '33' : s.color, // Add opacity for fill
-                    borderColor: s.color,
+                    type: cfg.type === 'area' ? 'line' : cfg.type,
+                    fill: cfg.type === 'area',
+                    yAxisID: cfg.axis === 'right' ? 'y1' : 'y',
+                    backgroundColor: isLine ? `hsla(${hue}, 70%, 50%, 0.1)` : `hsla(${hue}, 70%, 60%, 0.7)`,
+                    borderColor: `hsla(${hue}, 70%, 55%, 1)`,
                     borderWidth: 2,
-                    yAxisID: s.axis === 'right' ? 'y1' : 'y',
-                    tension: 0.3,
-                    order: 1
+                    tension: App.workspace.options.tension,
+                    datalabels: { display: App.workspace.options.showValues, color: '#fff', align: 'end', anchor: 'end', font: {size:10} }
                 };
             });
 
-            // 3. Add Trendline?
-            if(state.options.trendline && seriesList.length > 0) {
-                const source = datasets[0]; // Trendline for primary dataset
-                const values = source.data;
-                const n = values.length;
+            // TRENDLINE ENGINE
+            if(App.workspace.options.showTrendline && datasets.length > 0) {
+                const source = datasets[0].data; // Trendline based on first series
+                const n = source.length;
                 let sumX=0, sumY=0, sumXY=0, sumXX=0;
-                values.forEach((y, x) => { sumX+=x; sumY+=y; sumXY+=x*y; sumXX+=x*x; });
+                source.forEach((y, x) => { sumX+=x; sumY+=y; sumXY+=x*y; sumXX+=x*x; });
                 const slope = (n*sumXY - sumX*sumY) / (n*sumXX - sumX*sumX);
                 const intercept = (sumY - slope*sumX) / n;
-                
-                const trendData = values.map((_, x) => slope*x + intercept);
+                const trendData = source.map((_, x) => slope*x + intercept);
                 
                 datasets.push({
-                    label: `Trend (${source.label})`,
-                    data: trendData,
-                    type: 'line', borderDash: [5, 5], borderColor: '#f8fafc', borderWidth: 1.5, pointRadius: 0,
-                    yAxisID: source.yAxisID, order: 0
+                    label: 'Trend', data: trendData, type: 'line', borderDash: [5,5], borderColor: '#fff', borderWidth: 1, pointRadius: 0, fill: false, yAxisID: datasets[0].yAxisID
                 });
             }
 
-            // 4. Destroy & Create
+            // STATS CALCULATION
+            updateStatsBar(datasets);
+
+            // CHARTJS INIT
             if(App.charts.single) App.charts.single.destroy();
-            
             const ctx = document.getElementById('s-chart').getContext('2d');
             
-            // Custom Plugin for Data Labels (Avoid external dependency)
-            const labelPlugin = {
-                id: 'simpleLabels',
-                afterDatasetsDraw(chart) {
-                    if(!state.options.labels) return;
-                    const ctx = chart.ctx;
-                    chart.data.datasets.forEach((dataset, i) => {
-                        const meta = chart.getDatasetMeta(i);
-                        if(dataset.type === 'line' && !dataset.fill) return; // Skip simple lines to avoid clutter
-                        meta.data.forEach((element, index) => {
-                            const data = dataset.data[index];
-                            if(data === 0) return;
-                            ctx.fillStyle = '#fff';
-                            ctx.font = '10px Inter';
-                            ctx.textAlign = 'center';
-                            ctx.fillText(Math.round(data).toLocaleString(), element.x, element.y - 5);
-                        });
-                    });
-                }
-            };
-
             App.charts.single = new Chart(ctx, {
                 type: 'bar',
-                data: { labels: labels, datasets: datasets },
-                plugins: [labelPlugin],
+                data: { labels, datasets },
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     interaction: { mode: 'index', intersect: false },
-                    scales: {
-                        x: { stacked: state.options.stacked, ticks: {color: '#94a3b8'}, grid: {color: '#1e293b'} },
-                        y: { 
-                            stacked: state.options.stacked, position: 'left',
-                            ticks: {color: '#94a3b8'}, grid: {color: '#1e293b'}, title: {display:true, text:'Primary'} 
-                        },
-                        y1: {
-                            display: seriesList.some(s=>s.axis==='right'), position: 'right',
-                            grid: {drawOnChartArea:false}, ticks: {color: '#fb923c'}, title: {display:true, text:'Secondary', color:'#fb923c'}
-                        }
+                    plugins: {
+                        legend: { labels: { color: '#94a3b8', font: {size:11} } },
+                        tooltip: { backgroundColor: '#1e293b', borderColor: '#475569', borderWidth: 1, titleColor:'#fff', bodyColor:'#cbd5e1' },
+                        datalabels: { formatter: Math.round } // clean integers
                     },
-                    plugins: { legend: { labels: { color: '#cbd5e1', usePointStyle: true } } }
+                    scales: {
+                        x: { grid: { color: '#334155', tickLength: 5 }, ticks: { color: '#94a3b8' } },
+                        y: { type: 'linear', display: true, position: 'left', grid: { color: '#334155' }, ticks: { color: '#94a3b8' } },
+                        y1: { type: 'linear', display: datasets.some(d=>d.yAxisID=='y1'), position: 'right', grid: { drawOnChartArea: false }, ticks: { color: '#f59e0b' } }
+                    }
                 }
             });
         }
 
-        // --- COMPARE RENDERER (Robust) ---
-        function updateCompareChart(id) {
-            // Need to ensure wrapper is visible or render will fail size calc
+        function updateStatsBar(datasets) {
+            // Aggregate totals across all visible series (excluding trendline)
+            let total = 0, count = 0, min = Infinity, max = -Infinity;
+            
+            datasets.forEach(ds => {
+                if(ds.label === 'Trend') return;
+                ds.data.forEach(v => {
+                    total += v; count++;
+                    if(v < min) min = v;
+                    if(v > max) max = v;
+                });
+            });
+
+            if(count === 0) return;
+            
+            els.statsBar.classList.remove('hidden');
+            els.statsBar.innerHTML = `
+                <div class="px-3 py-1 bg-slate-800 rounded border border-slate-700 flex gap-2 items-center"><span class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Sum</span> <span class="text-white font-mono">${total.toLocaleString()}</span></div>
+                <div class="px-3 py-1 bg-slate-800 rounded border border-slate-700 flex gap-2 items-center"><span class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Avg</span> <span class="text-white font-mono">${(total/count).toFixed(2)}</span></div>
+                <div class="px-3 py-1 bg-slate-800 rounded border border-slate-700 flex gap-2 items-center"><span class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Max</span> <span class="text-emerald-400 font-mono">${max.toLocaleString()}</span></div>
+                <div class="px-3 py-1 bg-slate-800 rounded border border-slate-700 flex gap-2 items-center"><span class="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Min</span> <span class="text-red-400 font-mono">${min.toLocaleString()}</span></div>
+            `;
+        }
+
+
+        /** =========================================
+         * VIEW LOGIC: COMPARE (FIXED)
+         * ========================================= */
+        function loadCompareView() {
+            // Ensure files exist
+            const files = Object.keys(App.files);
+            if(files.length === 0) return;
+
+            // 1. Set Defaults if empty
+            if(!App.compare.c1File) App.compare.c1File = files[0];
+            if(!App.compare.c2File) App.compare.c2File = files.length > 1 ? files[1] : files[0];
+
+            // 2. Sync Dropdowns with State
+            els.c1File.value = App.compare.c1File;
+            els.c2File.value = App.compare.c2File;
+
+            // 3. Render Independent Sides
+            setupCompareSide(1);
+            setupCompareSide(2);
+
+            // 4. Handle Overlay
+            if(files.length < 2) {
+                els.c2Wrapper.classList.add('blur-sm','pointer-events-none');
+                els.c2Overlay.classList.remove('hidden');
+            } else {
+                els.c2Wrapper.classList.remove('blur-sm','pointer-events-none');
+                els.c2Overlay.classList.add('hidden');
+            }
+        }
+
+        function setupCompareSide(id) {
             const fname = els[`c${id}File`].value;
-            if(!fname) return;
+            if(!fname || !App.files[fname]) return;
             const f = App.files[fname];
+
+            // Populate Axes
+            const xSel = els[`c${id}X`]; const ySel = els[`c${id}Y`];
+            const savedX = App.compare[`c${id}X`]; const savedY = App.compare[`c${id}Y`];
+
+            xSel.innerHTML = ''; ySel.innerHTML = '';
+            f.headers.forEach(h => { xSel.add(new Option(h,h)); ySel.add(new Option(h,h)); });
             
-            // Ensure dropdowns populated
-            if(els[`c${id}X`].options.length === 0) populateAxes(id, fname);
+            // Restore Selection or Guess
+            if(savedX && f.headers.includes(savedX)) xSel.value = savedX; 
+            else xSel.value = f.headers[0];
             
+            if(savedY && f.headers.includes(savedY)) ySel.value = savedY;
+            else ySel.value = f.headers[1] || f.headers[0];
+
+            renderCompareChart(id);
+        }
+
+        // Compare Listeners
+        [1, 2].forEach(id => {
+            els[`c${id}File`].addEventListener('change', (e) => { App.compare[`c${id}File`] = e.target.value; setupCompareSide(id); saveState(); });
+            els[`c${id}X`].addEventListener('change', (e) => { App.compare[`c${id}X`] = e.target.value; renderCompareChart(id); saveState(); });
+            els[`c${id}Y`].addEventListener('change', (e) => { App.compare[`c${id}Y`] = e.target.value; renderCompareChart(id); saveState(); });
+        });
+
+        function renderCompareChart(id) {
+            const fname = els[`c${id}File`].value;
+            const f = App.files[fname];
             const xCol = els[`c${id}X`].value;
             const yCol = els[`c${id}Y`].value;
-            
-            // Simple Aggregate
-            const pivot = {};
-            f.filteredData.forEach(r => {
-                const k = r[xCol]||"(Blank)";
-                let v = parseFloat(String(r[yCol]).replace(/[^0-9.-]/g,'')) || 0;
-                pivot[k] = (pivot[k] || 0) + v;
-            });
-            
-            const labels = Object.keys(pivot);
-            const data = Object.values(pivot);
 
-            const ctxId = `c${id}-chart`;
+            // Simple data map (no pivot for comparison quick view)
+            const labels = f.filteredData.map(d => d[xCol]);
+            const data = f.filteredData.map(d => {
+                let v = d[yCol];
+                if(typeof v === 'string') v = parseFloat(v.replace(/[^0-9.-]+/g,""));
+                return v || 0;
+            });
+
             if(App.charts[`c${id}`]) App.charts[`c${id}`].destroy();
+            const ctx = document.getElementById(`c${id}-chart`).getContext('2d');
             
-            App.charts[`c${id}`] = new Chart(document.getElementById(ctxId), {
-                type: 'bar',
+            const color = id === 1 ? '#3b82f6' : '#10b981'; // Blue vs Emerald
+            
+            App.charts[`c${id}`] = new Chart(ctx, {
+                type: 'line',
                 data: {
                     labels: labels,
                     datasets: [{
-                        label: yCol,
-                        data: data,
-                        backgroundColor: id === 1 ? '#3b82f6' : '#10b981',
-                        borderRadius: 4
+                        label: yCol, data: data,
+                        borderColor: color, backgroundColor: color + '20',
+                        borderWidth: 2, fill: true, tension: 0.3, pointRadius: 0
                     }]
                 },
                 options: {
                     responsive: true, maintainAspectRatio: false,
                     plugins: { legend: { display: false } },
                     scales: {
-                        x: { ticks: { color: '#64748b', font: {size:10} }, grid: { display: false } },
-                        y: { ticks: { color: '#64748b', font: {size:10} }, grid: { color: '#1e293b' } }
+                        x: { display: false }, // Cleaner look for compare
+                        y: { grid: { color: '#334155' }, ticks: { color: '#94a3b8' } }
                     }
                 }
             });
         }
 
-        function populateAxes(id, fname) {
-            const h = App.files[fname].headers;
-            const x = els[`c${id}X`], y = els[`c${id}Y`];
-            // Save current selection
-            const curX = x.value, curY = y.value;
-            x.innerHTML = ''; y.innerHTML = '';
-            h.forEach(k => { x.add(new Option(k,k)); y.add(new Option(k,k)); });
-            
-            // Restore or default
-            x.value = h.includes(curX) ? curX : (App.fileStates[fname]?.xCol || h[0]);
-            y.value = h.includes(curY) ? curY : (App.fileStates[fname]?.series[0]?.col || h[1]);
-        }
 
-        function setupCompareLayout() {
-            const files = Object.keys(App.files);
-            if(files.length === 0) return;
-            
-            // 1. Set File Dropdowns
-            [els.c1File, els.c2File].forEach(s => {
-                 const cur = s.value; s.innerHTML=''; 
-                 files.forEach(f=>s.add(new Option(f,f)));
-                 if(files.includes(cur)) s.value=cur;
-            });
-
-            // 2. Defaults if empty
-            if(!els.c1File.value) els.c1File.value = files[0];
-            if(!els.c2File.value) els.c2File.value = files.length > 1 ? files[1] : files[0];
-
-            // 3. UI States
-            if(files.length < 2 && els.c1File.value === els.c2File.value) {
-                els.c2Overlay.classList.remove('hidden'); // Show "Upload Another"
-            } else {
-                els.c2Overlay.classList.add('hidden');
-            }
-
-            // 4. Trigger Render (Wait for DOM paint to ensure canvas has size)
-            requestAnimationFrame(() => {
-                updateCompareChart(1);
-                updateCompareChart(2);
-            });
-        }
-
-        // --- UTILS: Filters & Edit ---
-        function renderHeaders(fname, thead, ctx) {
+        /** =========================================
+         * SHARED UTILS (Render, Edit, Filter, Download)
+         * ========================================= */
+        function renderHeaders(fname, thead, ctxId) {
             const f = App.files[fname];
             thead.innerHTML = f.headers.map(h => {
-                const active = f.filters[h] && f.filters[h].size > 0;
-                return `<th class="px-4 py-3 bg-slate-900 border-b border-slate-700 whitespace-nowrap">
-                    <div class="flex items-center gap-2">
-                        <span class="${active?'text-blue-400':''}">${h}</span>
-                        <button class="text-slate-600 hover:text-white" onclick="toggleFilter('${fname}','${h}',this)">
-                            <i class="fa-solid fa-filter ${active?'text-blue-500':''}"></i>
-                        </button>
+                const isActive = f.columnFilters[h] && f.columnFilters[h].size > 0;
+                return `<th class="px-4 py-3 bg-slate-900 border-b border-slate-700 whitespace-nowrap relative group">
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="font-bold text-slate-300">${h}</span>
+                        <button class="filter-trigger p-1 rounded hover:bg-slate-700 ${isActive?'text-blue-400':'text-slate-600'}" 
+                        onclick="toggleFilter('${fname}','${h}',this)"><i class="fa-solid fa-filter"></i></button>
                     </div>
                 </th>`;
             }).join('');
         }
 
-        window.toggleFilter = (fname, col, btn) => {
-            document.querySelectorAll('.filter-dropdown').forEach(d=>d.remove());
-            const f = App.files[fname];
-            const unique = [...new Set(f.rawData.map(r=>r[col]))].sort();
-            const active = f.filters[col];
+        function renderTable(tbody, data, headers, countEl, editable=false) {
+            const rows = data.slice(0, 50); // Limit DOM for performance
+            tbody.innerHTML = rows.map((r, rIdx) => `
+                <tr class="hover:bg-slate-800 border-b border-slate-800 transition">
+                    ${headers.map(h => `
+                        <td class="${editable?'cursor-text hover:bg-slate-700/50':''} px-4 py-2 truncate max-w-[120px] outline-none transition-colors" 
+                            ${editable ? `contenteditable="true" onblur="updateCell('${App.activeFile}', ${rIdx}, '${h}', this)"` : ''}>
+                            ${r[h] !== undefined ? r[h] : ''}
+                        </td>`).join('')}
+                </tr>`).join('');
+            if(countEl) countEl.innerText = `${data.length} rows (Displaying 50)`;
+        }
 
-            const dd = document.createElement('div');
-            dd.className = 'filter-dropdown';
+        window.updateCell = (fname, rowIdx, col, el) => {
+            const val = el.innerText;
+            // Update raw data (Note: this simple logic assumes no filtering re-ordering. 
+            // In a full DB app we'd use IDs, but for simple array index works if not sorted/filtered heavily)
+            App.files[fname].filteredData[rowIdx][col] = val;
+            App.dirty = true;
+            clearTimeout(window._t); window._t = setTimeout(updateSingleChart, 300);
+        };
+
+        // Filter Logic
+        window.toggleFilter = (fname, col, btn) => {
+            const existing = document.querySelector('.filter-dropdown'); if(existing) existing.remove();
+            
+            const f = App.files[fname];
+            const vals = [...new Set(f.rawData.map(r => r[col]))].sort().slice(0, 100); // Limit distinct vals
+            const active = f.columnFilters[col];
+
+            const dd = document.createElement('div'); dd.className = 'dropdown-menu filter-dropdown';
+            dd.style.width = '200px';
             dd.innerHTML = `
-                <div class="p-2 bg-slate-800 border-b border-slate-700"><input type="text" placeholder="Search..." class="w-full bg-slate-900 text-xs p-1.5 rounded border border-slate-700 text-white outline-none" onkeyup="this.nextElementSibling.childNodes.forEach(l=>{l.style.display=l.innerText.toLowerCase().includes(this.value.toLowerCase())?'flex':'none'})"></div>
-                <div class="p-2 max-h-48 overflow-y-auto space-y-1">
-                    ${unique.map(v => `<label class="flex gap-2 text-xs text-slate-300 hover:bg-slate-700 p-1 rounded cursor-pointer"><input type="checkbox" value="${v}" ${!active||active.has(String(v))?'checked':''} class="accent-blue-500"> ${v}</label>`).join('')}
+                <div class="p-2 border-b border-slate-700"><input type="text" placeholder="Search..." class="w-full bg-slate-800 text-xs p-1 rounded text-white outline-none" onkeyup="filterList(this)"></div>
+                <div class="filter-list p-2 max-h-48 overflow-y-auto space-y-1">
+                    ${vals.map(v => `<label class="flex gap-2 text-xs text-slate-300 cursor-pointer hover:bg-slate-700 p-1 rounded"><input type="checkbox" value="${v}" ${!active || active.has(String(v))?'checked':''} class="accent-blue-500"> ${v}</label>`).join('')}
                 </div>
-                <div class="p-2 bg-slate-800 flex justify-between">
+                <div class="flex justify-between p-2 bg-slate-800 rounded-b">
                     <button class="text-xs text-blue-400 font-bold" onclick="applyFilter('${fname}','${col}',this)">Apply</button>
                     <button class="text-xs text-slate-500" onclick="clearFilter('${fname}','${col}')">Clear</button>
                 </div>`;
             document.body.appendChild(dd);
-            const rect=btn.getBoundingClientRect(); dd.style.left=`${rect.left}px`; dd.style.top=`${rect.bottom+5}px`;
-        };
-
-        window.applyFilter = (fname, col, btn) => {
-            const boxes = btn.closest('.filter-dropdown').querySelectorAll('input:checked');
-            const set = new Set(Array.from(boxes).map(b=>b.value));
-            App.files[fname].filters[col] = set;
-            processFilters(fname);
-        };
-        window.clearFilter = (fname, col) => { delete App.files[fname].filters[col]; processFilters(fname); };
-
-        function processFilters(fname) {
-            document.querySelectorAll('.filter-dropdown').forEach(d=>d.remove());
-            const f = App.files[fname];
-            f.filteredData = f.rawData.filter(r => Object.entries(f.filters).every(([c,s]) => s.has(String(r[c]))));
-            App.dirty = true; saveState();
+            const rect = btn.getBoundingClientRect(); dd.style.left=`${rect.left}px`; dd.style.top=`${rect.bottom+5}px`;
             
-            // Intelligent Refresh
-            if(App.activeMode === 'single') {
-                renderTable(els.sTbody, f.filteredData, f.headers, els.sCount, true);
-                updateSingleChart();
-            } else {
-                updateCompareChart(1); updateCompareChart(2);
-            }
-        }
-
-        function renderTable(tbody, data, headers, countEl, editable) {
-            const rows = data.slice(0, 100);
-            tbody.innerHTML = rows.map((r, i) => `
-                <tr class="hover:bg-slate-800/50 transition border-b border-slate-800/50">
-                    ${headers.map(h => `<td class="px-4 py-2 truncate max-w-[120px] outline-none" ${editable?`contenteditable="true" onblur="updateCell('${App.activeFile}',${i},'${h}',this)"`:''}>${r[h]}</td>`).join('')}
-                </tr>
-            `).join('');
-            if(countEl) countEl.innerText = `${data.length.toLocaleString()} Rows`;
-        }
-
-        window.updateCell = (fname, row, col, el) => {
-            const val = el.innerText;
-            App.files[fname].rawData[row][col] = val;
-            App.files[fname].filteredData[row][col] = val; // Assuming filters align 1:1 for top 100, imperfect but functional for MVP
-            App.dirty = true;
-            clearTimeout(window._t); window._t = setTimeout(() => { updateSingleChart(); saveState(); }, 500);
+            // Close listener
+            setTimeout(()=>document.addEventListener('click', function c(e){
+                if(!e.target.closest('.filter-dropdown') && !e.target.closest('.filter-trigger')) {
+                    dd.remove(); document.removeEventListener('click',c);
+                }
+            }),0);
         };
 
+        window.filterList = (inp) => { const t=inp.value.toLowerCase(); inp.closest('.filter-dropdown').querySelectorAll('label').forEach(l=>l.style.display=l.innerText.toLowerCase().includes(t)?'flex':'none'); }
+        
+        window.applyFilter = (fname, col, btn) => {
+            const cbs = btn.closest('.filter-dropdown').querySelectorAll('input:checked');
+            const set = new Set(Array.from(cbs).map(c=>c.value));
+            App.files[fname].columnFilters[col] = set;
+            document.querySelector('.filter-dropdown').remove();
+            recalcFilter(fname);
+        };
+        
+        window.clearFilter = (fname, col) => { delete App.files[fname].columnFilters[col]; document.querySelector('.filter-dropdown').remove(); recalcFilter(fname); };
+
+        function recalcFilter(fname) {
+            const f = App.files[fname];
+            f.filteredData = f.rawData.filter(r => Object.entries(f.columnFilters).every(([c,s]) => s.has(String(r[c]))));
+            loadSingleView(); saveState();
+        }
+
+        // Downloads
         function downloadChart(id, name) {
-            const c = document.getElementById(id);
-            const link = document.createElement('a');
-            link.download = `${name}-${new Date().toISOString().slice(0,10)}.png`;
-            link.href = c.toDataURL();
-            link.click();
+            const c = document.getElementById(id); const a = document.createElement('a');
+            a.download = `${name}_${Date.now()}.png`; a.href = c.toDataURL(); a.click();
         }
 
         function downloadCombined() {
-            const c1 = document.getElementById('c1-chart');
-            const c2 = document.getElementById('c2-chart');
-            const canvas = document.createElement('canvas');
-            canvas.width = c1.width + c2.width + 60;
-            canvas.height = Math.max(c1.height, c2.height) + 100;
-            const ctx = canvas.getContext('2d');
-            
-            ctx.fillStyle = '#020617'; ctx.fillRect(0,0,canvas.width,canvas.height);
-            ctx.fillStyle = '#fff'; ctx.font='bold 24px Inter'; ctx.fillText("Comparison Report", 20, 40);
-            
-            ctx.drawImage(c1, 20, 60);
-            ctx.drawImage(c2, c1.width + 40, 60);
-            
-            const link = document.createElement('a');
-            link.download = `Report-${Date.now()}.png`;
-            link.href = canvas.toDataURL();
-            link.click();
+            const c1=document.getElementById('c1-chart'), c2=document.getElementById('c2-chart');
+            const t=document.createElement('canvas'); t.width=c1.width+c2.width+40; t.height=Math.max(c1.height,c2.height)+40;
+            const x=t.getContext('2d'); x.fillStyle='#0f172a'; x.fillRect(0,0,t.width,t.height);
+            x.drawImage(c1,20,20); x.drawImage(c2,c1.width+40,20);
+            const a=document.createElement('a'); a.download=`CombinedReport_${Date.now()}.png`; a.href=t.toDataURL(); a.click();
+        }
+
+        function downloadCSV() {
+            if(!App.activeFile) return;
+            const f = App.files[App.activeFile];
+            const wb = XLSX.utils.book_new();
+            const ws = XLSX.utils.json_to_sheet(f.filteredData);
+            XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+            XLSX.writeFile(wb, `Edited_${App.activeFile}`);
         }
     </script>
 </body>
